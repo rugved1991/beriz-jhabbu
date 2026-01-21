@@ -53,11 +53,8 @@ function App() {
   // Jhabbu auto-play state (for playing the lowest card after Jhabbu)
   const [jhabbuAutoPlay, setJhabbuAutoPlay] = useState<{
     playerId: string;
-    cardId: string; // Store card ID instead of card object
+    card: Card;
   } | null>(null);
-  
-  // Flag to allow auto-play to bypass the jhabbuAutoPlay check
-  const isExecutingAutoPlay = React.useRef(false);
 
   // Jhabbu announcement state (for dramatic display)
   const [jhabbuAnnouncement, setJhabbuAnnouncement] = useState<{
@@ -206,31 +203,12 @@ function App() {
             return;
           }
 
-          // Smart Jhabbu: If multiple cards selected, keep lowest and give rest as Jhabbu
-          let finalCardsToPlay: Card[];
-          let lowestCardToKeep: Card | null = null;
-
-          if (cardsToPlay.length > 1) {
-            const { jhabbuCards, lowestCard } = processJhabbuPlay(cardsToPlay);
-            finalCardsToPlay = jhabbuCards;
-            lowestCardToKeep = lowestCard;
-            
-            console.log('Bot Smart Jhabbu Processing:', {
-              botName: currentPlayer.name,
-              selectedCards: cardsToPlay.map(c => `${c.rank}${c.suit}`),
-              jhabbuCards: jhabbuCards.map(c => `${c.rank}${c.suit}`),
-              lowestCard: `${lowestCard.rank}${lowestCard.suit}`
-            });
-          } else {
-            finalCardsToPlay = cardsToPlay;
-          }
-
           // Handle the bot's Phase 2 play
           const expectedPlayerId = gameState.players[gameState.currentPlayerIndex].id;
 
           const result = handlePhase2TrickWithElimination(
             currentPlayer.id,
-            finalCardsToPlay,
+            cardsToPlay,
             gameState.players,
             gameState.trickCards,
             gameState.leadSuit,
@@ -252,7 +230,7 @@ function App() {
               return new Map();
             } else {
               // Add positions for all played cards
-              finalCardsToPlay.forEach(card => {
+              cardsToPlay.forEach(card => {
                 const position = generateCardPosition(Array.from(newPositions.values()));
                 newPositions.set(card.id, position);
               });
@@ -283,14 +261,6 @@ function App() {
                 jhabbuReceiver: jhabbuReceiverName,
                 cardCount: result.jhabbuCardCount || 0
               });
-              
-              // If bot kept a lowest card, set up auto-play
-              if (lowestCardToKeep && result.nextLeaderId === currentPlayer.id) {
-                setJhabbuAutoPlay({
-                  playerId: currentPlayer.id,
-                  cardId: lowestCardToKeep.id // Store card ID instead of card object
-                });
-              }
             }
             
             console.log('Bot Phase 2 Trick Complete - Setting Next Leader:', {
@@ -318,6 +288,165 @@ function App() {
           setGameState(newState);
           setIsBotThinking(false);
         }
+            const result = handlePhase1CardPlay(
+              currentPlayer.id,
+              cardToPlay,
+              gameState.players,
+              gameState.table
+            );
+
+            if (!result.success) {
+              console.error('Bot card play failed:', result.error);
+              setIsBotThinking(false);
+              return;
+            }
+
+            // Update card positions FIRST, before game state
+            setCardPositions(currentPositions => {
+              let newPositions = new Map(currentPositions);
+              
+              if (result.penaltyCards) {
+                // Penalty occurred - remove positions for collected cards
+                result.penaltyCards.forEach(card => {
+                  newPositions.delete(card.id);
+                });
+              } else {
+                // No penalty - add position for the played card
+                const position = generateCardPosition(Array.from(newPositions.values()));
+                newPositions.set(cardToPlay!.id, position);
+              }
+              
+              return newPositions;
+            });
+
+            // Update game state
+            let newState: GameState = {
+              ...gameState,
+              players: result.updatedPlayers,
+              table: result.updatedTable
+            };
+
+            // Check if Phase 1 is complete
+            if (result.phase1Complete) {
+              // Move remaining table cards to last player
+              const finalPlayers = handlePhase1Completion(
+                currentPlayer.id,
+                result.updatedPlayers,
+                result.updatedTable
+              );
+
+              // Prepare for Phase 2 - use finalPlayers, not result.updatedPlayers
+              const phase2Players = transitionToPhase2(finalPlayers);
+
+              // Show phase transition announcement
+              setShowPhaseTransition(true);
+
+              // Update newState with phase2Players BEFORE transition
+              newState = {
+                ...newState,
+                players: phase2Players,
+                table: [],
+                leadSuit: null,
+                trickCards: []
+              };
+
+              // Now transition to JHABBU with updated players
+              newState = transitionToPhase(newState, 'JHABBU');
+              setCardPositions(new Map()); // Clear table positions
+            }
+
+            // Move to next player
+            const nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+            newState.currentPlayerIndex = nextPlayerIndex;
+
+            setGameState(newState);
+            setIsBotThinking(false);
+          } else if (gameState.phase === 'JHABBU') {
+            const expectedPlayerId = gameState.players[gameState.currentPlayerIndex].id;
+
+            const result = handlePhase2TrickWithElimination(
+              currentPlayer.id,
+              [cardToPlay],
+              gameState.players,
+              gameState.trickCards,
+              gameState.leadSuit,
+              expectedPlayerId
+            );
+
+            if (!result.success) {
+              console.error('Bot card play failed:', result.error);
+              setIsBotThinking(false);
+              return;
+            }
+
+            // Update card positions for Phase 2
+            setCardPositions(currentPositions => {
+              let newPositions = new Map(currentPositions);
+              
+              if (result.trickComplete) {
+                // Trick is complete - clear all positions
+                return new Map();
+              } else {
+                // Add position for the played card
+                const position = generateCardPosition(Array.from(newPositions.values()));
+                newPositions.set(cardToPlay!.id, position);
+                return newPositions;
+              }
+            });
+
+            let newState: GameState = {
+              ...gameState,
+              players: result.updatedPlayers,
+              trickCards: result.updatedTrickCards,
+              leadSuit: result.leadSuit
+            };
+
+            // If trick is complete, update leader
+            if (result.trickComplete && result.nextLeaderId) {
+              const nextLeaderIndex = newState.players.findIndex(p => p.id === result.nextLeaderId);
+              newState.currentPlayerIndex = nextLeaderIndex;
+              newState.leadSuit = null;
+              
+              // If this was a Jhabbu dump, show announcement
+              if (result.wasJhabbu && result.jhabbuGiverId && result.trickWinnerId) {
+                const jhabbuGiverName = gameState.players.find(p => p.id === result.jhabbuGiverId)?.name || 'Unknown';
+                const jhabbuReceiverName = gameState.players.find(p => p.id === result.trickWinnerId)?.name || 'Unknown';
+                
+                setJhabbuAnnouncement({
+                  jhabbuGiver: jhabbuGiverName,
+                  jhabbuReceiver: jhabbuReceiverName,
+                  cardCount: result.jhabbuCardCount || 0
+                });
+              }
+              
+              console.log('Bot Phase 2 Trick Complete - Setting Next Leader:', {
+                nextLeaderId: result.nextLeaderId,
+                nextLeaderName: newState.players[nextLeaderIndex]?.name,
+                nextLeaderIndex,
+                trickCards: result.updatedTrickCards.length,
+                wasJhabbu: result.wasJhabbu
+              });
+            } else {
+              // Move to next active player
+              let nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+              while (!gameState.players[nextPlayerIndex].isActive) {
+                nextPlayerIndex = (nextPlayerIndex + 1) % gameState.players.length;
+              }
+              newState.currentPlayerIndex = nextPlayerIndex;
+            }
+
+            // Check if game is over
+            if (result.gameOver && result.loserId) {
+              newState.loser = result.loserId;
+              newState = transitionToPhase(newState, 'GAME_OVER');
+            }
+
+            setGameState(newState);
+            setIsBotThinking(false);
+          }
+        } else {
+          setIsBotThinking(false);
+        }
       } catch (error) {
         console.error('Bot AI error:', error);
         setIsBotThinking(false);
@@ -335,83 +464,34 @@ function App() {
    * Jhabbu Auto-Play: Automatically play the lowest card after giving Jhabbu
    */
   useEffect(() => {
-      console.log('Jhabbu Auto-Play Effect:', {
-      hasJhabbuAutoPlay: !!jhabbuAutoPlay,
-      phase: gameState.phase,
-      currentPlayerIndex: gameState.currentPlayerIndex,
-      jhabbuAutoPlayDetails: jhabbuAutoPlay ? {
-        playerId: jhabbuAutoPlay.playerId,
-        cardId: jhabbuAutoPlay.cardId
-      } : null
-    });
-    
     if (!jhabbuAutoPlay || gameState.phase !== 'JHABBU') {
       return;
     }
 
     // Check if it's the Jhabbu giver's turn (they should lead next)
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    
-    console.log('Checking if auto-play should trigger:', {
-      currentPlayer: currentPlayer ? {
-        id: currentPlayer.id,
-        name: currentPlayer.name
-      } : null,
-      jhabbuPlayerId: jhabbuAutoPlay.playerId,
-      match: currentPlayer?.id === jhabbuAutoPlay.playerId
-    });
-    
     if (!currentPlayer || currentPlayer.id !== jhabbuAutoPlay.playerId) {
       // Not their turn yet, wait
-      console.log('Not the Jhabbu giver\'s turn yet, waiting...');
       return;
     }
 
-    // Set a delay for dramatic effect (500ms - plays quickly after announcement)
+    // Set a delay for dramatic effect (2 seconds)
     const timeoutId = setTimeout(() => {
-      // Find the card in the current player's hand
-      const cardToPlay = currentPlayer.hand.find(c => c.id === jhabbuAutoPlay.cardId);
-      
-      if (!cardToPlay) {
-        console.error('Jhabbu Auto-Play: Card not found in hand', {
-          cardId: jhabbuAutoPlay.cardId,
-          handCards: currentPlayer.hand.map(c => `${c.id}: ${c.rank}${c.suit}`)
-        });
-        setJhabbuAutoPlay(null);
-        return;
-      }
-      
-      console.log('Jhabbu Auto-Play: Executing auto-play', {
+      console.log('Jhabbu Auto-Play:', {
         player: currentPlayer.name,
-        card: `${cardToPlay.rank}${cardToPlay.suit}`,
-        cardId: cardToPlay.id
+        card: `${jhabbuAutoPlay.card.rank}${jhabbuAutoPlay.card.suit}`
       });
 
-      // Set flag to allow auto-play to bypass the check
-      isExecutingAutoPlay.current = true;
-      
-      // Clear jhabbuAutoPlay and any error messages
+      // Play the lowest card automatically
+      handlePlayCard(jhabbuAutoPlay.card);
       setJhabbuAutoPlay(null);
-      setCardPlayError('');
-      
-      // Play the lowest card automatically immediately (no need for setTimeout)
-      handlePlayCard(cardToPlay);
-    }, 500); // 500ms delay
+    }, 2000); // 2 second delay
 
     return () => {
       clearTimeout(timeoutId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jhabbuAutoPlay, gameState.phase, gameState.currentPlayerIndex]);
-
-  /**
-   * Clear error message when jhabbuAutoPlay is cleared
-   */
-  useEffect(() => {
-    if (!jhabbuAutoPlay && cardPlayError === 'Jhabbu auto-play in progress...') {
-      setCardPlayError('');
-    }
-  }, [jhabbuAutoPlay, cardPlayError]);
 
   /**
    * Handle room creation (Requirements 13.1)
@@ -478,25 +558,8 @@ function App() {
    * Handle game start - deal cards and transition to Phase 1
    */
   const handleStartGame = useCallback(() => {
-    // Create new state starting from current gameState
-    // If coming from GAME_OVER, we need to manually set to DEALING
-    let newState: GameState;
-    
-    if (gameState.phase === 'GAME_OVER') {
-      // Manual transition from GAME_OVER to DEALING (restart scenario)
-      newState = {
-        ...gameState,
-        phase: 'DEALING',
-        currentPlayerIndex: 0,
-        table: [],
-        leadSuit: null,
-        trickCards: [],
-        loser: null
-      };
-    } else {
-      // Normal transition to DEALING phase
-      newState = transitionToPhase(gameState, 'DEALING');
-    }
+    // Transition to DEALING phase
+    let newState = transitionToPhase(gameState, 'DEALING');
 
     // Determine the dealer
     let dealerId: string;
@@ -506,14 +569,8 @@ function App() {
       const nextDealerIndex = (currentDealerIndex + 1) % gameState.players.length;
       dealerId = gameState.players[nextDealerIndex].id;
     } else {
-      // First game - randomly select a dealer
-      const randomDealerIndex = Math.floor(Math.random() * gameState.players.length);
-      dealerId = gameState.players[randomDealerIndex].id;
-      console.log('First game - Random dealer selected:', {
-        dealerIndex: randomDealerIndex,
-        dealerId,
-        dealerName: gameState.players[randomDealerIndex].name
-      });
+      // First game - set the first player (position 0) as the dealer
+      dealerId = gameState.players[0].id;
     }
     
     newState.dealerId = dealerId;
@@ -548,27 +605,11 @@ function App() {
    * Handle card play - routes to Phase 1 or Phase 2 logic
    */
   const handlePlayCard = useCallback((cardOrCards: Card | Card[]) => {
-    console.log('handlePlayCard called:', {
-      cardOrCards: Array.isArray(cardOrCards) 
-        ? cardOrCards.map(c => `${c.rank}${c.suit}`)
-        : `${cardOrCards.rank}${cardOrCards.suit}`,
-      isBotThinking,
-      hasJhabbuAutoPlay: !!jhabbuAutoPlay,
-      isExecutingAutoPlay: isExecutingAutoPlay.current,
-      phase: gameState.phase
-    });
-    
-    // Prevent play if bot is thinking or Jhabbu auto-play is pending (unless this IS the auto-play)
-    if (!isExecutingAutoPlay.current && (isBotThinking || jhabbuAutoPlay)) {
-      console.log('handlePlayCard blocked:', {
-        reason: jhabbuAutoPlay ? 'Jhabbu auto-play in progress' : 'Bot is thinking'
-      });
+    // Prevent play if bot is thinking or Jhabbu auto-play is pending
+    if (isBotThinking || jhabbuAutoPlay) {
       setCardPlayError(jhabbuAutoPlay ? 'Jhabbu auto-play in progress...' : 'Please wait for the bot to finish playing...');
       return;
     }
-    
-    // Clear the auto-play flag
-    isExecutingAutoPlay.current = false;
 
     // Clear any previous error
     setCardPlayError('');
@@ -669,15 +710,10 @@ function App() {
         console.log('Smart Jhabbu Processing:', {
           selectedCards: cards.map(c => `${c.rank}${c.suit}`),
           jhabbuCards: jhabbuCards.map(c => `${c.rank}${c.suit}`),
-          lowestCard: `${lowestCard.rank}${lowestCard.suit}`,
-          playerId: effectiveUserId
+          lowestCard: `${lowestCard.rank}${lowestCard.suit}`
         });
       } else {
         cardsToPlay = cards;
-        console.log('Single card play (not Jhabbu):', {
-          card: `${cards[0].rank}${cards[0].suit}`,
-          playerId: effectiveUserId
-        });
       }
 
       const result = handlePhase2TrickWithElimination(
@@ -692,11 +728,7 @@ function App() {
       if (!result.success) {
         const errorMessage = formatCardPlayError(result.error || 'Card play failed');
         setCardPlayError(errorMessage);
-        console.error('Phase 2 Card play failed - Setting error message:', {
-          error: result.error,
-          formattedError: errorMessage,
-          playerId: effectiveUserId
-        });
+        console.error('Card play failed:', result.error);
         return;
       }
 
@@ -707,26 +739,11 @@ function App() {
         // Trick is complete - clear all positions
         newPositions.clear();
         
-        console.log('Trick Complete - Checking for Jhabbu auto-play:', {
-          lowestCardToKeep: lowestCardToKeep ? `${lowestCardToKeep.rank}${lowestCardToKeep.suit}` : null,
-          nextLeaderId: result.nextLeaderId,
-          effectiveUserId,
-          wasJhabbu: result.wasJhabbu,
-          shouldAutoPlay: lowestCardToKeep && result.nextLeaderId === effectiveUserId
-        });
-        
-        // If this was a Jhabbu dump, show announcement
-        if (result.wasJhabbu && result.trickWinnerId) {
+        // If this was a Jhabbu dump, show announcement and set up auto-play
+        if (lowestCardToKeep && result.nextLeaderId === effectiveUserId) {
+          // Find the Jhabbu receiver (player with highest card of lead suit)
           const jhabbuReceiverName = gameState.players.find(p => p.id === result.trickWinnerId)?.name || 'Unknown';
           const jhabbuGiverName = localPlayer?.name || 'Unknown';
-          
-          console.log('Setting up Jhabbu announcement:', {
-            jhabbuGiver: jhabbuGiverName,
-            jhabbuReceiver: jhabbuReceiverName,
-            cardCount: cardsToPlay.length,
-            lowestCard: lowestCardToKeep ? `${lowestCardToKeep.rank}${lowestCardToKeep.suit}` : 'none (eliminated)',
-            hasAutoPlay: !!lowestCardToKeep
-          });
           
           setJhabbuAnnouncement({
             jhabbuGiver: jhabbuGiverName,
@@ -734,17 +751,10 @@ function App() {
             cardCount: cardsToPlay.length
           });
           
-          // Set up auto-play only if there's a card to keep
-          if (lowestCardToKeep && result.nextLeaderId === effectiveUserId) {
-            console.log('Setting up Jhabbu auto-play:', {
-              lowestCardId: lowestCardToKeep.id
-            });
-            
-            setJhabbuAutoPlay({
-              playerId: effectiveUserId,
-              cardId: lowestCardToKeep.id // Store card ID instead of card object
-            });
-          }
+          setJhabbuAutoPlay({
+            playerId: effectiveUserId,
+            card: lowestCardToKeep
+          });
         }
       } else {
         // Add positions for all played cards
@@ -798,77 +808,27 @@ function App() {
    * Handle game restart - reset game state and start a new round
    */
   const handleRestartGame = useCallback(() => {
-    // Directly start a new game from GAME_OVER
-    // Create new state starting from GAME_OVER
-    let newState: GameState = {
-      ...gameState,
-      phase: 'DEALING',
+    // Reset game state but keep players and rotate dealer
+    setGameState(prev => ({
+      ...prev,
+      phase: 'LOBBY',
       currentPlayerIndex: 0,
       table: [],
       leadSuit: null,
       trickCards: [],
       loser: null
-    };
-
-    // Determine the dealer (rotate to next player)
-    let dealerId: string;
-    if (gameState.dealerId) {
-      // Rotate to the next player clockwise
-      const currentDealerIndex = gameState.players.findIndex(p => p.id === gameState.dealerId);
-      const nextDealerIndex = (currentDealerIndex + 1) % gameState.players.length;
-      dealerId = gameState.players[nextDealerIndex].id;
-      console.log('Restart game - Dealer rotated:', {
-        previousDealerIndex: currentDealerIndex,
-        newDealerIndex: nextDealerIndex,
-        newDealerId: dealerId,
-        newDealerName: gameState.players[nextDealerIndex].name
-      });
-    } else {
-      // First game - randomly select a dealer
-      const randomDealerIndex = Math.floor(Math.random() * gameState.players.length);
-      dealerId = gameState.players[randomDealerIndex].id;
-      console.log('Restart game - Random dealer selected:', {
-        dealerIndex: randomDealerIndex,
-        dealerId,
-        dealerName: gameState.players[randomDealerIndex].name
-      });
-    }
-    
-    newState.dealerId = dealerId;
-
-    // Calculate deck count and generate cards
-    const deckCount = calculateDeckCount(gameState.players.length);
-    const deck = generateDecks(deckCount);
-
-    // Deal cards to players
-    const hands = dealCards(deck, gameState.players.length);
-
-    // Update players with their hands and reset their state
-    const updatedPlayers = gameState.players.map((player, index) => ({
-      ...player,
-      hand: hands[index],
-      sideDeck: [],
-      isActive: true
     }));
-
-    newState = {
-      ...newState,
-      players: updatedPlayers
-    };
-
-    // Transition to BERIZ phase
-    newState = {
-      ...newState,
-      phase: 'BERIZ'
-    };
-
-    setGameState(newState);
     
     // Clear card positions
     setCardPositions(new Map());
     setCardPlayError('');
     setIsBotThinking(false);
-  }, [gameState]);
+    
+    // Automatically start the next game
+    setTimeout(() => {
+      handleStartGame();
+    }, 100);
+  }, [handleStartGame]);
 
   // Render appropriate component based on phase
   if (gameState.phase === 'SETUP') {
@@ -892,13 +852,6 @@ function App() {
   if (gameState.phase === 'GAME_OVER') {
     const loser = gameState.players.find(p => p.id === gameState.loser);
     const winners = gameState.players.filter(p => p.id !== gameState.loser);
-
-    console.log('Game Over - Displaying results:', {
-      loserId: gameState.loser,
-      loserName: loser?.name,
-      winnerCount: winners.length,
-      winners: winners.map(w => w.name)
-    });
 
     return (
       <GameOver
@@ -958,6 +911,17 @@ function App() {
           </div>
         </header>
 
+        {/* Card play error message */}
+        {cardPlayError && (
+          <div 
+            className="mb-3 sm:mb-4 bg-red-50 border border-red-300 rounded-lg p-2 sm:p-3"
+            role="alert"
+            aria-live="assertive"
+          >
+            <p className="text-xs sm:text-sm text-red-800">{cardPlayError}</p>
+          </div>
+        )}
+
         {/* Game table */}
         <main>
           <div className="mb-3 sm:mb-4">
@@ -986,32 +950,14 @@ function App() {
           )}
 
           {/* Jhabbu auto-play indicator */}
-          {jhabbuAutoPlay && localPlayer && (() => {
-            const cardToPlay = localPlayer.hand.find(c => c.id === jhabbuAutoPlay.cardId);
-            if (!cardToPlay) return null;
-            
-            return (
-              <div 
-                className="mb-3 sm:mb-4 bg-purple-50 border border-purple-300 rounded-lg p-2 sm:p-3 text-center"
-                role="status"
-                aria-live="polite"
-              >
-                <p className="text-xs sm:text-sm text-purple-800 font-semibold">
-                  🎴 Jhabbu given! Playing lowest card ({cardToPlay.rank}{cardToPlay.suit === 'hearts' ? '♥' : cardToPlay.suit === 'diamonds' ? '♦' : cardToPlay.suit === 'clubs' ? '♣' : '♠'}) next...
-                </p>
-              </div>
-            );
-          })()}
-
-          {/* Card play error message - positioned near player hand */}
-          {cardPlayError && (
+          {jhabbuAutoPlay && (
             <div 
-              className="mb-3 sm:mb-4 bg-red-50 border-2 border-red-400 rounded-lg p-3 sm:p-4 shadow-lg"
-              role="alert"
-              aria-live="assertive"
+              className="mb-3 sm:mb-4 bg-purple-50 border border-purple-300 rounded-lg p-2 sm:p-3 text-center"
+              role="status"
+              aria-live="polite"
             >
-              <p className="text-sm sm:text-base text-red-800 font-semibold text-center">
-                ⚠️ {cardPlayError}
+              <p className="text-xs sm:text-sm text-purple-800 font-semibold">
+                🎴 Jhabbu given! Playing lowest card ({jhabbuAutoPlay.card.rank}{jhabbuAutoPlay.card.suit === 'hearts' ? '♥' : jhabbuAutoPlay.card.suit === 'diamonds' ? '♦' : jhabbuAutoPlay.card.suit === 'clubs' ? '♣' : '♠'}) next...
               </p>
             </div>
           )}
@@ -1023,7 +969,6 @@ function App() {
               isCurrentPlayer={currentPlayer?.id === effectiveUserId && !isBotThinking && !jhabbuAutoPlay}
               onPlayCard={handlePlayCard}
               phase={gameState.phase}
-              gameState={gameState}
             />
           )}
         </main>
