@@ -18,6 +18,7 @@ export interface Player {
   isActive: boolean;
   isHost: boolean;
   position: number; // Position around the table (0 to N-1)
+  finishPosition?: number; // Order of finishing (1 = first to finish, undefined = still playing or loser)
 }
 
 export interface CardPosition {

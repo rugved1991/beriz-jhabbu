@@ -365,13 +365,17 @@ export interface EliminationCheckResult {
 export function checkPlayerElimination(players: Player[]): EliminationCheckResult {
   const eliminatedPlayerIds: string[] = [];
 
+  // Count how many players have already finished (have finishPosition set)
+  const finishedCount = players.filter(p => p.finishPosition !== undefined).length;
+
   // Mark players with empty hands as inactive (they've won)
   const updatedPlayers = players.map(player => {
     if (player.isActive && player.hand.length === 0) {
       eliminatedPlayerIds.push(player.id);
       return {
         ...player,
-        isActive: false
+        isActive: false,
+        finishPosition: finishedCount + eliminatedPlayerIds.indexOf(player.id) + 1 // Assign finish position
       };
     }
     return player;

@@ -248,9 +248,9 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
 
       {/* Hand cards display */}
       <div className="w-full">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-gray-400">
-            Hand ({player.hand.length} {player.hand.length === 1 ? 'card' : 'cards'})
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs text-gray-400">
+            Hand ({player.hand.length})
           </p>
           {isCurrentPlayer && player.isActive && (
             <p 
@@ -265,12 +265,12 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
 
         {/* Cards container with AnimatePresence for smooth transitions */}
         <div 
-          className="flex flex-wrap gap-2 min-h-[100px] p-2 bg-gray-900 rounded-lg"
+          className="flex flex-wrap gap-1.5 min-h-[80px] p-1.5 bg-gray-900 rounded-lg"
           role="group"
           aria-label="Your cards"
         >
           {player.hand.length === 0 ? (
-            <div className="w-full flex items-center justify-center text-gray-500 text-sm">
+            <div className="w-full flex items-center justify-center text-gray-500 text-xs">
               No cards in hand
             </div>
           ) : (
@@ -283,8 +283,8 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
                     key={card.id}
                     className={`
                       transition-all duration-200 cursor-pointer
-                      ${isSelected ? 'transform -translate-y-2 ring-4 ring-yellow-400' : ''}
-                      ${isHinted ? 'ring-4 ring-purple-500 animate-pulse' : ''}
+                      ${isSelected ? 'transform -translate-y-1 ring-2 ring-yellow-400' : ''}
+                      ${isHinted ? 'ring-2 ring-purple-500 animate-pulse' : ''}
                       ${isCurrentPlayer && player.isActive ? 'hover:scale-105' : ''}
                     `}
                     onClick={(e) => handleCardClick(card, e)}
@@ -304,28 +304,22 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
         {isCurrentPlayer && player.isActive && selectedCards.size > 0 && (
           <button
             onClick={handlePlayCard}
-            className="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors focus:outline-none focus:ring-4 focus:ring-blue-400"
+            className="mt-1.5 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm"
             aria-label={`Play ${selectedCards.size} selected card${selectedCards.size > 1 ? 's' : ''}`}
           >
             {phase === 'JHABBU' && selectedCards.size > 1 
               ? `Give Jhabbu (${selectedCards.size} cards)` 
-              : `Play Selected Card${selectedCards.size > 1 ? 's' : ''}`}
+              : `Play Card${selectedCards.size > 1 ? 's' : ''}`}
           </button>
         )}
       </div>
 
       {/* Phase indicator for current player */}
-      {isCurrentPlayer && player.isActive && (
-        <div className="w-full text-center text-xs text-gray-400" role="status">
-          {phase === 'BERIZ' && 'Phase 1: Beriz (Addition Phase)'}
-          {phase === 'JHABBU' && (
-            <div>
-              <div>Phase 2: Jhabbu (Trick-Taking Phase)</div>
-              <div className="mt-1 text-yellow-400">
-                💡 Hold Ctrl/Cmd and click to select multiple cards for Jhabbu
-              </div>
-            </div>
-          )}
+      {isCurrentPlayer && player.isActive && phase === 'JHABBU' && (
+        <div className="w-full text-center text-xs text-gray-400 mt-1" role="status">
+          <div className="text-yellow-400">
+            💡 Ctrl/Cmd + click for Jhabbu
+          </div>
         </div>
       )}
     </div>

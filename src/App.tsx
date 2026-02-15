@@ -487,7 +487,7 @@ function App() {
       newState = {
         ...gameState,
         phase: 'DEALING',
-        currentPlayerIndex: 0,
+        currentPlayerIndex: 0, // Will be set properly after dealer is determined
         table: [],
         leadSuit: null,
         trickCards: [],
@@ -500,19 +500,20 @@ function App() {
 
     // Determine the dealer
     let dealerId: string;
+    let dealerIndex: number;
     if (gameState.dealerId) {
       // If there's already a dealer, rotate to the next player clockwise
       const currentDealerIndex = gameState.players.findIndex(p => p.id === gameState.dealerId);
-      const nextDealerIndex = (currentDealerIndex + 1) % gameState.players.length;
-      dealerId = gameState.players[nextDealerIndex].id;
+      dealerIndex = (currentDealerIndex + 1) % gameState.players.length;
+      dealerId = gameState.players[dealerIndex].id;
     } else {
       // First game - randomly select a dealer
-      const randomDealerIndex = Math.floor(Math.random() * gameState.players.length);
-      dealerId = gameState.players[randomDealerIndex].id;
+      dealerIndex = Math.floor(Math.random() * gameState.players.length);
+      dealerId = gameState.players[dealerIndex].id;
       console.log('First game - Random dealer selected:', {
-        dealerIndex: randomDealerIndex,
+        dealerIndex,
         dealerId,
-        dealerName: gameState.players[randomDealerIndex].name
+        dealerName: gameState.players[dealerIndex].name
       });
     }
     
@@ -530,7 +531,8 @@ function App() {
       ...player,
       hand: hands[index],
       sideDeck: [],
-      isActive: true
+      isActive: true,
+      finishPosition: undefined // Reset finish position for new game
     }));
 
     newState = {
@@ -540,6 +542,10 @@ function App() {
 
     // Transition to BERIZ phase
     newState = transitionToPhase(newState, 'BERIZ');
+    
+    // Set starting player to the left of dealer (clockwise)
+    const startingPlayerIndex = (dealerIndex + 1) % gameState.players.length;
+    newState.currentPlayerIndex = startingPlayerIndex;
 
     setGameState(newState);
   }, [gameState]);
@@ -915,31 +921,31 @@ function App() {
   const effectiveUserId = localPlayer?.id || currentUserId;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto w-full">
-        {/* Game header */}
-        <header className="bg-white rounded-lg shadow-lg p-3 sm:p-4 mb-3 sm:mb-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-            <div className="flex-shrink-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Beriz Jhabbu</h1>
-              <p className="text-xs sm:text-sm text-gray-600">
-                Room: <span className="font-mono font-bold">{gameState.roomId}</span>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-800 to-gray-900 overflow-auto">
+      <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full p-2 sm:p-3">
+        {/* Compact Game header */}
+        <header className="bg-white rounded-lg shadow-lg p-2 sm:p-3 mb-2 flex-shrink-0">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex-shrink-0 min-w-0">
+              <h1 className="text-base sm:text-xl font-bold text-gray-800 truncate">Beriz Jhabbu</h1>
+              <p className="text-xs text-gray-600 truncate">
+                <span className="font-mono font-bold">{gameState.roomId}</span>
               </p>
             </div>
-            <div className="flex-shrink-0">
-              <p className="text-xs sm:text-sm text-gray-600">Current Phase</p>
+            <div className="flex-shrink-0 text-center">
+              <p className="text-xs text-gray-600">Phase</p>
               <p 
-                className="text-base sm:text-xl font-bold text-green-700"
+                className="text-sm sm:text-base font-bold text-green-700"
                 role="status"
                 aria-live="polite"
               >
-                {gameState.phase === 'BERIZ' ? 'Phase 1: Beriz' : 'Phase 2: Jhabbu'}
+                {gameState.phase === 'BERIZ' ? 'Beriz' : 'Jhabbu'}
               </p>
             </div>
-            <div className="flex-shrink-0">
-              <p className="text-xs sm:text-sm text-gray-600">Current Turn</p>
+            <div className="flex-shrink-0 text-center min-w-0">
+              <p className="text-xs text-gray-600">Turn</p>
               <p 
-                className="text-base sm:text-lg font-bold text-blue-700"
+                className="text-sm sm:text-base font-bold text-blue-700 truncate"
                 role="status"
                 aria-live="polite"
               >
@@ -949,7 +955,7 @@ function App() {
             <div className="flex-shrink-0">
               <button
                 onClick={() => setIsRulesOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-3 sm:py-2 sm:px-4 rounded shadow text-sm sm:text-base"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 px-2 sm:py-1.5 sm:px-3 rounded shadow text-xs sm:text-sm"
                 aria-label="View game rules"
               >
                 📖 Rules
@@ -958,9 +964,10 @@ function App() {
           </div>
         </header>
 
-        {/* Game table */}
-        <main>
-          <div className="mb-3 sm:mb-4">
+        {/* Game content */}
+        <main className="flex-shrink-0">
+          {/* Table area with fixed reasonable height */}
+          <div className="mb-2" style={{ height: '400px' }}>
             <Table
               cards={gameState.phase === 'JHABBU' ? gameState.trickCards.map(tc => tc.card) : gameState.table}
               cardPositions={cardPositions}
@@ -972,59 +979,64 @@ function App() {
             />
           </div>
 
-          {/* Bot thinking indicator */}
-          {isBotThinking && (
-            <div 
-              className="mb-3 sm:mb-4 bg-blue-50 border border-blue-300 rounded-lg p-2 sm:p-3 text-center"
-              role="status"
-              aria-live="polite"
-            >
-              <p className="text-xs sm:text-sm text-blue-800 font-semibold">
-                🤖 {currentPlayer?.name} is thinking...
-              </p>
-            </div>
-          )}
-
-          {/* Jhabbu auto-play indicator */}
-          {jhabbuAutoPlay && localPlayer && (() => {
-            const cardToPlay = localPlayer.hand.find(c => c.id === jhabbuAutoPlay.cardId);
-            if (!cardToPlay) return null;
-            
-            return (
+          {/* Status messages - compact */}
+          <div className="flex-shrink-0">
+            {/* Bot thinking indicator */}
+            {isBotThinking && (
               <div 
-                className="mb-3 sm:mb-4 bg-purple-50 border border-purple-300 rounded-lg p-2 sm:p-3 text-center"
+                className="mb-1 bg-blue-50 border border-blue-300 rounded p-1.5 text-center"
                 role="status"
                 aria-live="polite"
               >
-                <p className="text-xs sm:text-sm text-purple-800 font-semibold">
-                  🎴 Jhabbu given! Playing lowest card ({cardToPlay.rank}{cardToPlay.suit === 'hearts' ? '♥' : cardToPlay.suit === 'diamonds' ? '♦' : cardToPlay.suit === 'clubs' ? '♣' : '♠'}) next...
+                <p className="text-xs text-blue-800 font-semibold">
+                  🤖 {currentPlayer?.name} is thinking...
                 </p>
               </div>
-            );
-          })()}
+            )}
 
-          {/* Card play error message - positioned near player hand */}
-          {cardPlayError && (
-            <div 
-              className="mb-3 sm:mb-4 bg-red-50 border-2 border-red-400 rounded-lg p-3 sm:p-4 shadow-lg"
-              role="alert"
-              aria-live="assertive"
-            >
-              <p className="text-sm sm:text-base text-red-800 font-semibold text-center">
-                ⚠️ {cardPlayError}
-              </p>
-            </div>
-          )}
+            {/* Jhabbu auto-play indicator */}
+            {jhabbuAutoPlay && localPlayer && (() => {
+              const cardToPlay = localPlayer.hand.find(c => c.id === jhabbuAutoPlay.cardId);
+              if (!cardToPlay) return null;
+              
+              return (
+                <div 
+                  className="mb-1 bg-purple-50 border border-purple-300 rounded p-1.5 text-center"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="text-xs text-purple-800 font-semibold">
+                    🎴 Playing {cardToPlay.rank}{cardToPlay.suit === 'hearts' ? '♥' : cardToPlay.suit === 'diamonds' ? '♦' : cardToPlay.suit === 'clubs' ? '♣' : '♠'}...
+                  </p>
+                </div>
+              );
+            })()}
 
-          {/* Local player hand */}
+            {/* Card play error message */}
+            {cardPlayError && (
+              <div 
+                className="mb-1 bg-red-50 border-2 border-red-400 rounded p-2 shadow-lg"
+                role="alert"
+                aria-live="assertive"
+              >
+                <p className="text-xs sm:text-sm text-red-800 font-semibold text-center">
+                  ⚠️ {cardPlayError}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Player hand */}
           {localPlayer && (
-            <PlayerHand
-              player={localPlayer}
-              isCurrentPlayer={currentPlayer?.id === effectiveUserId && !isBotThinking && !jhabbuAutoPlay}
-              onPlayCard={handlePlayCard}
-              phase={gameState.phase}
-              gameState={gameState}
-            />
+            <div className="flex-shrink-0 mb-4">
+              <PlayerHand
+                player={localPlayer}
+                isCurrentPlayer={currentPlayer?.id === effectiveUserId && !isBotThinking && !jhabbuAutoPlay}
+                onPlayCard={handlePlayCard}
+                phase={gameState.phase}
+                gameState={gameState}
+              />
+            </div>
           )}
         </main>
       </div>

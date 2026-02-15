@@ -25,8 +25,8 @@ function calculatePlayerPosition(
   // Start at bottom (Math.PI / 2) and go counter-clockwise
   const angle = (2 * Math.PI * relativePosition) / totalPlayers + Math.PI / 2;
   
-  // Adjust radius based on number of players to prevent overlap
-  const radius = totalPlayers <= 4 ? 55 : totalPlayers <= 8 ? 58 : 60;
+  // Adjust radius based on number of players - balanced positioning
+  const radius = totalPlayers <= 4 ? 58 : totalPlayers <= 8 ? 60 : totalPlayers <= 12 ? 62 : 64;
   
   return {
     x: 50 + radius * Math.cos(angle), // Center at 50%

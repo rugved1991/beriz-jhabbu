@@ -201,9 +201,9 @@ describe('State Machine', () => {
   describe('transitionToGameOver', () => {
     it('should transition from JHABBU to GAME_OVER when one player has cards', () => {
       const players = [
-        createPlayer('player1', 0, 0), // No cards - winner
-        createPlayer('player2', 0, 3), // Has cards - loser
-        createPlayer('player3', 0, 0), // No cards - winner
+        createPlayer('player1', 0, 0), // No cards in hand - winner
+        createPlayer('player2', 3, 0), // Has cards in hand - loser (in Phase 2, cards are in hand)
+        createPlayer('player3', 0, 0), // No cards in hand - winner
       ];
       const state = createGameState('JHABBU', players);
       const newState = transitionToGameOver(state);
@@ -214,7 +214,7 @@ describe('State Machine', () => {
     it('should throw error when transitioning from invalid phase', () => {
       const players = [
         createPlayer('player1', 0, 0),
-        createPlayer('player2', 0, 3),
+        createPlayer('player2', 3, 0),
       ];
       const state = createGameState('BERIZ', players);
       expect(() => transitionToGameOver(state)).toThrow('Invalid transition from BERIZ to GAME_OVER');
@@ -222,8 +222,8 @@ describe('State Machine', () => {
 
     it('should throw error when multiple players have cards', () => {
       const players = [
-        createPlayer('player1', 0, 2), // Has cards
-        createPlayer('player2', 0, 3), // Has cards
+        createPlayer('player1', 2, 0), // Has cards in hand
+        createPlayer('player2', 3, 0), // Has cards in hand
       ];
       const state = createGameState('JHABBU', players);
       expect(() => transitionToGameOver(state)).toThrow('Cannot transition to GAME_OVER: expected 1 player with cards, found 2');
@@ -270,7 +270,7 @@ describe('State Machine', () => {
     it('should route to correct transition function for GAME_OVER', () => {
       const players = [
         createPlayer('player1', 0, 0),
-        createPlayer('player2', 0, 3),
+        createPlayer('player2', 3, 0), // Cards in hand for Phase 2
       ];
       const state = createGameState('JHABBU', players);
       const newState = transitionToPhase(state, 'GAME_OVER');
@@ -314,10 +314,10 @@ describe('State Machine', () => {
       state = transitionToJhabbu(state);
       expect(state.phase).toBe('JHABBU');
 
-      // One player empties side deck
+      // One player empties hand (Phase 2 uses hand, not sideDeck)
       state.players = [
         createPlayer('player1', 0, 0),
-        createPlayer('player2', 0, 2),
+        createPlayer('player2', 2, 0), // Cards in hand for Phase 2
       ];
 
       // JHABBU -> GAME_OVER

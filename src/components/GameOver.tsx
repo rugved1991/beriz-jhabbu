@@ -12,13 +12,20 @@ interface GameOverProps {
  * 
  * Displays the game over screen with:
  * - The loser (last player with cards remaining)
- * - All winners (players who emptied their side decks)
+ * - All winners (players who emptied their side decks) sorted by finish position
  * - Final standings
  * - New Game button to restart
  * 
  * Requirements: 12.4
  */
 const GameOver: React.FC<GameOverProps> = ({ loser, winners, onNewGame }) => {
+  // Sort winners by finish position (1st, 2nd, 3rd, etc.)
+  const sortedWinners = [...winners].sort((a, b) => {
+    const posA = a.finishPosition ?? 999;
+    const posB = b.finishPosition ?? 999;
+    return posA - posB;
+  });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-800 to-green-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl p-8 max-w-2xl w-full">
@@ -39,14 +46,18 @@ const GameOver: React.FC<GameOverProps> = ({ loser, winners, onNewGame }) => {
         <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 mb-6">
           <h2 className="text-2xl font-bold text-green-800 text-center mb-4">Winners</h2>
           <div className="space-y-2">
-            {winners.map((winner, index) => (
+            {sortedWinners.map((winner) => (
               <div 
                 key={winner.id} 
                 className="bg-white rounded p-3 flex items-center justify-between shadow-sm"
               >
                 <span className="font-semibold text-gray-800">{winner.name}</span>
                 <span className="text-sm text-green-600 font-medium">
-                  Position {index + 1}
+                  {winner.finishPosition === 1 && '🥇 1st Place'}
+                  {winner.finishPosition === 2 && '🥈 2nd Place'}
+                  {winner.finishPosition === 3 && '🥉 3rd Place'}
+                  {winner.finishPosition && winner.finishPosition > 3 && `${winner.finishPosition}th Place`}
+                  {!winner.finishPosition && '✓ Winner'}
                 </span>
               </div>
             ))}
