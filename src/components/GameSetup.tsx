@@ -1,17 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { validatePlayerCount } from '../utils/validation';
 
 interface GameSetupProps {
   onCreateRoom: (playerCount: number) => Promise<string>; // Returns room ID
+  initialRoomId?: string; // Pre-filled room ID from URL
 }
 
-export function GameSetup({ onCreateRoom }: GameSetupProps) {
-  const [mode, setMode] = useState<'create' | 'join'>('create');
+export function GameSetup({ onCreateRoom, initialRoomId }: GameSetupProps) {
+  const [mode, setMode] = useState<'create' | 'join'>(initialRoomId ? 'join' : 'create');
   const [playerCount, setPlayerCount] = useState<string>('4');
-  const [roomId, setRoomId] = useState<string>('');
+  const [roomId, setRoomId] = useState<string>(initialRoomId || '');
   const [playerName, setPlayerName] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isCreating, setIsCreating] = useState<boolean>(false);
+
+  // Update roomId if initialRoomId changes
+  useEffect(() => {
+    if (initialRoomId) {
+      setRoomId(initialRoomId);
+      setMode('join');
+    }
+  }, [initialRoomId]);
 
   const handleCreateRoom = async () => {
     const count = parseInt(playerCount, 10);
