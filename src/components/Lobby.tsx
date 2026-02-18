@@ -7,6 +7,7 @@ interface LobbyProps {
   maxPlayers: number;
   players: Player[];
   isHost: boolean;
+  currentUserId: string;
   onJoinRoom: (playerName: string, roomId?: string) => Promise<void>;
   onStartGame: () => Promise<void>;
   onLeaveRoom: () => Promise<void>;
@@ -58,7 +59,7 @@ function getBorderWidth(totalPlayers: number): string {
   return 'border';
 }
 
-export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStartGame, onLeaveRoom }: LobbyProps) {
+export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJoinRoom, onStartGame, onLeaveRoom }: LobbyProps) {
   const [playerName, setPlayerName] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [hasJoined, setHasJoined] = useState<boolean>(false);
@@ -66,9 +67,9 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
   const [isStarting, setIsStarting] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Check if user has already joined (either by creating room or joining via URL)
-  // If there are players in the list and user is host, they've already joined
-  const isAlreadyInRoom = players.length > 0 && isHost;
+  // Check if current user is actually in the players list
+  const currentPlayerInRoom = players.find(p => p.id === currentUserId);
+  const isAlreadyInRoom = !!currentPlayerInRoom || hasJoined;
 
   const handleJoinRoom = async () => {
     // Validate player name

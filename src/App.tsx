@@ -720,6 +720,7 @@ function App() {
           maxPlayers={gameState.maxPlayers}
           players={gameState.players}
           isHost={isHost}
+          currentUserId={currentUserId}
           onJoinRoom={handleJoinRoom}
           onStartGame={handleStartGame}
           onLeaveRoom={handleLeaveRoom}
