@@ -515,6 +515,29 @@ function App() {
   }, [gameState.roomId]);
 
   /**
+   * Handle adding bot to room (host only)
+   */
+  const handleAddBot = useCallback(async () => {
+    setIsLoading(true);
+    setLoadingMessage('Adding bot...');
+    setGlobalError(null);
+    
+    try {
+      const roomId = localStorage.getItem('roomId') || gameState.roomId;
+      await socketManager.addBot(roomId, currentUserId);
+      
+      console.log('Bot added successfully');
+      // Player list will be updated via onPlayerJoined event listener
+    } catch (error) {
+      console.error('Failed to add bot:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add bot';
+      setGlobalError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [gameState.roomId, currentUserId]);
+
+  /**
    * Handle game start - emit to server (Requirements 4.4)
    */
   const handleStartGame = useCallback(async () => {
@@ -724,6 +747,7 @@ function App() {
           onJoinRoom={handleJoinRoom}
           onStartGame={handleStartGame}
           onLeaveRoom={handleLeaveRoom}
+          onAddBot={handleAddBot}
         />
         <ConnectionStatus status={connectionStatus} />
         <LoadingOverlay isLoading={isLoading} message={loadingMessage} />

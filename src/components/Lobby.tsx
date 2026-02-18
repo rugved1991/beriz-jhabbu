@@ -11,6 +11,7 @@ interface LobbyProps {
   onJoinRoom: (playerName: string, roomId?: string) => Promise<void>;
   onStartGame: () => Promise<void>;
   onLeaveRoom: () => Promise<void>;
+  onAddBot: () => Promise<void>;
 }
 
 /**
@@ -59,7 +60,7 @@ function getBorderWidth(totalPlayers: number): string {
   return 'border';
 }
 
-export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJoinRoom, onStartGame, onLeaveRoom }: LobbyProps) {
+export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJoinRoom, onStartGame, onLeaveRoom, onAddBot }: LobbyProps) {
   const [playerName, setPlayerName] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [hasJoined, setHasJoined] = useState<boolean>(false);
@@ -276,7 +277,7 @@ export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJo
             {/* Add bot player button for testing */}
             {players.length < maxPlayers && (
               <button
-                onClick={() => onJoinRoom(`Bot ${players.length + 1}`)}
+                onClick={onAddBot}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
               >
                 + Add Bot Player (for testing)
