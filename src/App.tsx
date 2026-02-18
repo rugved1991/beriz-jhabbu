@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import './App.css';
-import { GameState, Player, Card, CardPosition } from './types';
+import { GameState, Card, CardPosition } from './types';
 import { GameSetup } from './components/GameSetup';
 import { Lobby } from './components/Lobby';
 import Table from './components/Table';
@@ -12,12 +12,8 @@ import PhaseTransition from './components/PhaseTransition';
 import ConnectionStatus from './components/ConnectionStatus';
 import LoadingOverlay from './components/LoadingOverlay';
 import ErrorMessage from './components/ErrorMessage';
-import { generateRoomId } from './utils/roomUtils';
 import { calculateDeckCount, generateDecks, dealCards } from './utils/deckUtils';
 import { generateCardPosition } from './utils/cardPositionUtils';
-import { transitionToPhase } from './utils/stateMachine';
-import { handlePhase1CardPlay, handlePhase1Completion } from './utils/phase1Logic';
-import { handlePhase2TrickWithElimination, transitionToPhase2 } from './utils/phase2Logic';
 import { formatCardPlayError } from './utils/validation';
 import { isBot, botSelectPhase1Card, botSelectPhase2Cards, getBotDelay } from './utils/botAI';
 import { processJhabbuPlay } from './utils/jhabbuHelper';
@@ -154,7 +150,7 @@ function App() {
         
         try {
           // Try to rejoin with the stored session
-          const { sessionId, playerId, gameState: serverGameState } = await socketManager.joinRoom(
+          const { playerId, gameState: serverGameState } = await socketManager.joinRoom(
             storedRoomId,
             'Reconnecting...', // Placeholder name, server should use existing player name
             storedSessionId
@@ -513,7 +509,7 @@ function App() {
       setCardPlayError(formatCardPlayError(errorMessage));
       console.error('Card play failed:', error);
     }
-  }, [gameState.roomId, currentUserId, isBotThinking, jhabbuAutoPlay]);
+  }, [gameState.roomId, currentUserId, isBotThinking, jhabbuAutoPlay, gameState.phase]);
 
   /**
    * Handle game restart - reset game state and start a new round
