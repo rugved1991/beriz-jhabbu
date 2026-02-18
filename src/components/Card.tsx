@@ -117,8 +117,8 @@ const Card: React.FC<CardProps> = ({
       `}
       style={{
         ...transformStyle,
-        width: '2.75rem',  // 44px - visible on mobile
-        height: '4rem'     // 64px - visible on mobile
+        width: '3rem',     // 48px - better size for readability
+        height: '4.5rem'   // 72px - better aspect ratio
       }}
       onClick={isPlayable && onClick ? onClick : undefined}
       initial={variants.initial}
@@ -137,7 +137,7 @@ const Card: React.FC<CardProps> = ({
       }}
     >
       {/* Rank in top-left corner */}
-      <div className={`absolute top-0.5 left-0.5 text-xs font-bold ${suitColors[card.suit]}`} aria-hidden="true">
+      <div className={`absolute top-1 left-1 text-xs font-bold ${suitColors[card.suit]}`} aria-hidden="true">
         {card.rank}
       </div>
 
@@ -147,7 +147,7 @@ const Card: React.FC<CardProps> = ({
       </div>
 
       {/* Rank in bottom-right corner (upside down) */}
-      <div className={`absolute bottom-0.5 right-0.5 text-xs font-bold ${suitColors[card.suit]} rotate-180`} aria-hidden="true">
+      <div className={`absolute bottom-1 right-1 text-xs font-bold ${suitColors[card.suit]} rotate-180`} aria-hidden="true">
         {card.rank}
       </div>
     </motion.div>
