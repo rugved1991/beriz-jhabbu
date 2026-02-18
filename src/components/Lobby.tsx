@@ -73,11 +73,6 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
       return;
     }
 
-    if (players.length >= maxPlayers) {
-      setError('Room is full');
-      return;
-    }
-
     setError('');
     setIsJoining(true);
     
@@ -171,23 +166,30 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
         {!hasJoined && (
           <div className="mb-8 bg-gray-50 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Join Game</h2>
-            <div className="flex gap-3">
-              <input
-                type="text"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleJoinRoom()}
-                placeholder="Enter your name"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-              <button
-                onClick={handleJoinRoom}
-                disabled={isJoining}
-                className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isJoining ? 'Joining...' : 'Join'}
-              </button>
-            </div>
+            {players.length >= maxPlayers ? (
+              <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 text-center">
+                <p className="text-yellow-800 font-semibold">Room is full ({players.length}/{maxPlayers} players)</p>
+                <p className="text-yellow-700 text-sm mt-2">Waiting for a spot to open...</p>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleJoinRoom()}
+                  placeholder="Enter your name"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+                <button
+                  onClick={handleJoinRoom}
+                  disabled={isJoining}
+                  className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                >
+                  {isJoining ? 'Joining...' : 'Join'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

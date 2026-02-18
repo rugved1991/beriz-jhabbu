@@ -10,7 +10,6 @@ export function GameSetup({ onCreateRoom, initialRoomId }: GameSetupProps) {
   const [mode, setMode] = useState<'create' | 'join'>(initialRoomId ? 'join' : 'create');
   const [playerCount, setPlayerCount] = useState<string>('4');
   const [roomId, setRoomId] = useState<string>(initialRoomId || '');
-  const [playerName, setPlayerName] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isCreating, setIsCreating] = useState<boolean>(false);
 
@@ -48,14 +47,10 @@ export function GameSetup({ onCreateRoom, initialRoomId }: GameSetupProps) {
       setError('Please enter a room ID');
       return;
     }
-    if (!playerName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
     
     setError('');
-    // Navigate to lobby with room ID - the App will handle joining
-    window.location.href = `/?room=${roomId.toUpperCase()}&name=${encodeURIComponent(playerName)}`;
+    // Navigate to lobby with room ID only - user will enter name there
+    window.location.href = `/?room=${roomId.toUpperCase()}`;
   };
 
   return (
@@ -170,25 +165,6 @@ export function GameSetup({ onCreateRoom, initialRoomId }: GameSetupProps) {
                 className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-4 focus:ring-green-400 focus:border-green-500 focus:outline-none uppercase"
                 placeholder="Enter 6-character room ID"
                 maxLength={6}
-                aria-required="true"
-              />
-            </div>
-
-            <div>
-              <label 
-                htmlFor="playerName" 
-                className="block text-sm font-medium text-gray-800 mb-2"
-              >
-                Your Name
-              </label>
-              <input
-                id="playerName"
-                type="text"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-4 focus:ring-green-400 focus:border-green-500 focus:outline-none"
-                placeholder="Enter your name"
-                maxLength={20}
                 aria-required="true"
               />
             </div>

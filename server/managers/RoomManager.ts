@@ -158,10 +158,11 @@ export class RoomManager {
     this.cleanupInterval = setInterval(() => {
       const now = new Date();
       for (const [roomId, room] of this.rooms.entries()) {
-        // Delete empty rooms after 1 minute
+        // Delete empty rooms after 10 minutes (increased from 1 minute to allow time for sharing links)
         if (room.emptyAt !== null) {
           const emptyDuration = now.getTime() - room.emptyAt.getTime();
-          if (emptyDuration > 60 * 1000) { // 1 minute
+          if (emptyDuration > 10 * 60 * 1000) { // 10 minutes
+            console.log(`Deleting empty room ${roomId} after 10 minutes`);
             this.rooms.delete(roomId);
             continue;
           }
@@ -170,6 +171,7 @@ export class RoomManager {
         // Delete rooms inactive for 30 minutes
         const inactiveTime = now.getTime() - room.lastActivity.getTime();
         if (inactiveTime > 30 * 60 * 1000) { // 30 minutes
+          console.log(`Deleting inactive room ${roomId} after 30 minutes`);
           this.rooms.delete(roomId);
         }
       }

@@ -174,13 +174,59 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const roomIdParam = urlParams.get('room');
     
-    // If room ID is in URL, set it in state and show lobby
+    // If room ID is in URL, fetch room info and show lobby
     if (roomIdParam) {
       // Clear URL parameters
       window.history.replaceState({}, '', window.location.pathname);
       
-      // Set room ID in state and go to lobby so user can enter their name
-      setGameState(prev => ({ ...prev, roomId: roomIdParam, phase: 'LOBBY' }));
+      // Fetch room info to show existing players
+      const fetchRoomInfo = async () => {
+        try {
+          const roomInfo = await socketManager.getRoomInfo(roomIdParam);
+          
+          // Find the host player
+          const hostPlayer = roomInfo.players.find(p => p.isHost);
+          
+          // Set room ID and players in state, then go to lobby
+          setGameState(prev => ({ 
+            ...prev, 
+            roomId: roomIdParam,
+            hostId: hostPlayer?.id || '',
+            maxPlayers: roomInfo.maxPlayers,
+            players: roomInfo.players.map(p => ({
+              id: p.id,
+              name: p.name,
+              hand: [],
+              sideDeck: [],
+              isActive: true,
+              isHost: p.isHost,
+              position: p.position
+            })),
+            phase: 'LOBBY' 
+          }));
+          
+          console.log('Room info fetched:', {
+            roomId: roomIdParam,
+            maxPlayers: roomInfo.maxPlayers,
+            currentPlayers: roomInfo.currentPlayers,
+            hostId: hostPlayer?.id
+          });
+        } catch (error) {
+          console.error('Failed to fetch room info:', error);
+          // Still show lobby but with empty players list
+          setGameState(prev => ({ ...prev, roomId: roomIdParam, phase: 'LOBBY' }));
+          setGlobalError('Room not found or no longer exists');
+        }
+      };
+      
+      // Wait for connection before fetching room info
+      if (socketManager.isConnected()) {
+        fetchRoomInfo();
+      } else {
+        socketManager.onConnect(() => {
+          fetchRoomInfo();
+        });
+      }
     }
 
     // Wait for connection before attempting reconnection

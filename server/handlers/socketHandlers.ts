@@ -54,6 +54,47 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
     console.log('Client connected:', socket.id);
 
     /**
+     * Get Room Info Event Handler
+     * Retrieves room information without joining (for preview before joining)
+     */
+    socket.on('getRoomInfo', (data: { roomId: string }, callback) => {
+      // Rate limiting
+      if (!checkRateLimit(socket, 'getRoomInfo')) {
+        callback({ success: false, error: 'Too many requests. Please try again later.' });
+        return;
+      }
+
+      try {
+        const room = roomManager.getRoom(data.roomId);
+        
+        if (!room) {
+          callback({ success: false, error: 'Room not found' });
+          return;
+        }
+
+        // Return basic room info without sensitive data
+        callback({ 
+          success: true, 
+          roomInfo: {
+            roomId: room.id,
+            maxPlayers: room.maxPlayers,
+            currentPlayers: room.gameState.players.length,
+            players: room.gameState.players.map(p => ({
+              id: p.id,
+              name: p.name,
+              isHost: p.isHost,
+              position: p.position
+            })),
+            phase: room.gameState.phase
+          }
+        });
+      } catch (error) {
+        console.error('Error getting room info:', error);
+        callback({ success: false, error: 'Failed to get room info' });
+      }
+    });
+
+    /**
      * Create Room Event Handler
      * Creates a new game room with the requesting player as host
      */

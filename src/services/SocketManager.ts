@@ -118,6 +118,29 @@ class SocketManager {
     });
   }
 
+  getRoomInfo(roomId: string): Promise<{
+    roomId: string;
+    maxPlayers: number;
+    currentPlayers: number;
+    players: Array<{ id: string; name: string; isHost: boolean; position: number }>;
+    phase: string;
+  }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      this.socket.emit('getRoomInfo', { roomId }, (response: any) => {
+        if (response.success) {
+          resolve(response.roomInfo);
+        } else {
+          reject(new Error(response.error || 'Failed to get room info'));
+        }
+      });
+    });
+  }
+
   startGame(roomId: string, playerId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.socket) {
