@@ -818,13 +818,20 @@ function App() {
                 {currentPlayer?.name}
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 flex gap-2">
               <button
                 onClick={() => setIsRulesOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1 px-2 sm:py-1.5 sm:px-3 rounded shadow text-xs sm:text-sm"
                 aria-label="View game rules"
               >
                 📖 Rules
+              </button>
+              <button
+                onClick={handleLeaveRoom}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-2 sm:py-1.5 sm:px-3 rounded shadow text-xs sm:text-sm"
+                aria-label="Leave game"
+              >
+                🚪 Leave
               </button>
             </div>
           </div>
