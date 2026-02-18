@@ -187,7 +187,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           });
           
           // Filter game state for this player
-          const filteredState = filterGameStateForPlayer(room.gameState, playerId);
+          const filteredState = filterGameStateForPlayer(room.gameState, playerId, room.disconnectedPlayers);
           
           callback({ 
             success: true, 
@@ -218,7 +218,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
             });
             
             // Spectators see all hands hidden
-            const filteredState = filterGameStateForSpectator(room.gameState);
+            const filteredState = filterGameStateForSpectator(room.gameState, room.disconnectedPlayers);
             
             callback({ 
               success: true, 
