@@ -7,7 +7,7 @@ interface LobbyProps {
   maxPlayers: number;
   players: Player[];
   isHost: boolean;
-  onJoinRoom: (playerName: string) => Promise<void>;
+  onJoinRoom: (playerName: string, roomId?: string) => Promise<void>;
   onStartGame: () => Promise<void>;
 }
 
@@ -82,7 +82,7 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
     setIsJoining(true);
     
     try {
-      await onJoinRoom(playerName.trim());
+      await onJoinRoom(playerName.trim(), roomId);
       setHasJoined(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join room');

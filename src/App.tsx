@@ -184,7 +184,7 @@ function App() {
         setIsLoading(true);
         setLoadingMessage('Joining room...');
         try {
-          await handleJoinRoom(playerNameParam);
+          await handleJoinRoom(playerNameParam, roomIdParam);
         } catch (error) {
           console.error('Failed to join from URL:', error);
           setGlobalError('Failed to join room. Please try again.');
@@ -447,7 +447,7 @@ function App() {
   /**
    * Handle player joining room (Requirements 4.2, 15.3)
    */
-  const handleJoinRoom = useCallback(async (playerName: string) => {
+  const handleJoinRoom = useCallback(async (playerName: string, roomIdToJoin?: string) => {
     setIsLoading(true);
     setLoadingMessage('Joining room...');
     setGlobalError(null);
@@ -455,23 +455,30 @@ function App() {
     try {
       // Check for existing session ID in localStorage
       const storedSessionId = localStorage.getItem('sessionId');
-      const storedRoomId = localStorage.getItem('roomId') || gameState.roomId;
+      const storedRoomId = localStorage.getItem('roomId');
+      
+      // Use provided roomId, or fall back to stored/state roomId
+      const targetRoomId = roomIdToJoin || storedRoomId || gameState.roomId;
+      
+      if (!targetRoomId) {
+        throw new Error('No room ID provided');
+      }
       
       const { sessionId, playerId, gameState: serverGameState } = await socketManager.joinRoom(
-        storedRoomId,
+        targetRoomId,
         playerName,
         storedSessionId || undefined
       );
       
       // Store session ID in localStorage for reconnection
       localStorage.setItem('sessionId', sessionId);
-      localStorage.setItem('roomId', storedRoomId);
+      localStorage.setItem('roomId', targetRoomId);
       
       // Update local state with server game state
       setGameState(serverGameState);
       setCurrentUserId(playerId);
       
-      console.log('Joined room successfully:', { roomId: storedRoomId, playerId, sessionId });
+      console.log('Joined room successfully:', { roomId: targetRoomId, playerId, sessionId });
     } catch (error) {
       console.error('Failed to join room:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to join room';
