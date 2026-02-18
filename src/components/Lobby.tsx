@@ -109,14 +109,14 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
 
   const handleCopyRoomCode = async () => {
     try {
-      const shareUrl = `${window.location.origin}/?room=${roomId}&name=`;
+      const shareUrl = `${window.location.origin}/?room=${roomId}`;
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
-      textArea.value = `${window.location.origin}/?room=${roomId}&name=`;
+      textArea.value = `${window.location.origin}/?room=${roomId}`;
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');

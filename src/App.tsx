@@ -173,40 +173,14 @@ function App() {
     // Check for URL parameters (join room via link)
     const urlParams = new URLSearchParams(window.location.search);
     const roomIdParam = urlParams.get('room');
-    const playerNameParam = urlParams.get('name');
     
-    if (roomIdParam && playerNameParam) {
+    // If room ID is in URL, set it in state and show lobby
+    if (roomIdParam) {
       // Clear URL parameters
       window.history.replaceState({}, '', window.location.pathname);
       
-      // Join room after connection
-      const joinFromUrl = async () => {
-        setIsLoading(true);
-        setLoadingMessage('Joining room...');
-        try {
-          await handleJoinRoom(playerNameParam, roomIdParam);
-        } catch (error) {
-          console.error('Failed to join from URL:', error);
-          setGlobalError('Failed to join room. Please try again.');
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      
-      // Set room ID and wait for connection
-      setGameState(prev => ({ ...prev, roomId: roomIdParam }));
-      
-      if (socketManager.isConnected()) {
-        joinFromUrl();
-      } else {
-        socketManager.onConnect(() => {
-          joinFromUrl();
-        });
-      }
-      
-      return () => {
-        socketManager.disconnect();
-      };
+      // Set room ID in state and go to lobby so user can enter their name
+      setGameState(prev => ({ ...prev, roomId: roomIdParam, phase: 'LOBBY' }));
     }
 
     // Wait for connection before attempting reconnection
@@ -638,7 +612,10 @@ function App() {
   if (gameState.phase === 'SETUP') {
     return (
       <>
-        <GameSetup onCreateRoom={handleCreateRoom} />
+        <GameSetup 
+          onCreateRoom={handleCreateRoom} 
+          initialRoomId={gameState.roomId || undefined}
+        />
         <ConnectionStatus status={connectionStatus} />
         <LoadingOverlay isLoading={isLoading} message={loadingMessage} />
         <ErrorMessage error={globalError} onDismiss={() => setGlobalError(null)} />
