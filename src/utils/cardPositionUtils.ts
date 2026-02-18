@@ -19,7 +19,7 @@ export function generateCardPosition(
   const TOTAL_SLOTS = 13;
   
   // Detect mobile screen size (check if window is defined for SSR compatibility)
-  const isMobile = (typeof window !== 'undefined') ? window.innerWidth < 640 : false; // sm breakpoint
+  const isMobile = (typeof window !== 'undefined') ? (window as Window).innerWidth < 640 : false; // sm breakpoint
   
   let slotPositions: Array<{ x: number; y: number }> = [];
   
