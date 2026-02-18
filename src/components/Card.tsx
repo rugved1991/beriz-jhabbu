@@ -109,7 +109,7 @@ const Card: React.FC<CardProps> = ({
   return (
     <motion.div
       className={`
-        relative w-12 h-18 sm:w-14 sm:h-21 md:w-16 md:h-24 bg-white rounded border-2 sm:rounded-lg border-gray-800
+        relative w-10 h-15 sm:w-14 sm:h-21 md:w-16 md:h-24 bg-white rounded border-2 sm:rounded-lg border-gray-800
         flex flex-col items-center justify-center
         shadow-lg
         ${isPlayable ? 'cursor-pointer hover:scale-105 hover:shadow-xl transition-transform' : ''}
@@ -133,17 +133,17 @@ const Card: React.FC<CardProps> = ({
       }}
     >
       {/* Rank in top-left corner */}
-      <div className={`absolute top-1 left-1 text-sm font-bold ${suitColors[card.suit]}`} aria-hidden="true">
+      <div className={`absolute top-0.5 left-0.5 sm:top-1 sm:left-1 text-xs sm:text-sm font-bold ${suitColors[card.suit]}`} aria-hidden="true">
         {card.rank}
       </div>
 
       {/* Suit symbol in center */}
-      <div className={`text-3xl ${suitColors[card.suit]}`} aria-hidden="true">
+      <div className={`text-2xl sm:text-3xl ${suitColors[card.suit]}`} aria-hidden="true">
         {suitSymbols[card.suit]}
       </div>
 
       {/* Rank in bottom-right corner (upside down) */}
-      <div className={`absolute bottom-1 right-1 text-sm font-bold ${suitColors[card.suit]} rotate-180`} aria-hidden="true">
+      <div className={`absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 text-xs sm:text-sm font-bold ${suitColors[card.suit]} rotate-180`} aria-hidden="true">
         {card.rank}
       </div>
     </motion.div>

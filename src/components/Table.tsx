@@ -29,8 +29,8 @@ const Table: React.FC<TableProps> = ({
 }) => {
   // Adjust padding based on number of players
   const playerCount = players?.length || 0;
-  const verticalPadding = playerCount <= 4 ? '50px' : playerCount <= 8 ? '60px' : '70px';
-  const horizontalPadding = playerCount <= 4 ? '50px' : playerCount <= 8 ? '60px' : '70px';
+  const verticalPadding = playerCount <= 4 ? '40px' : playerCount <= 8 ? '50px' : '60px';
+  const horizontalPadding = playerCount <= 4 ? '40px' : playerCount <= 8 ? '50px' : '60px';
   
   return (
     <div 
