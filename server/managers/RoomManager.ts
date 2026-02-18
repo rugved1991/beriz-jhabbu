@@ -88,6 +88,15 @@ export class RoomManager {
     if (!room) return false;
     if (room.gameState.players.length >= room.maxPlayers) return false;
 
+    // Check if this is the host joining (sessionId matches hostId)
+    const isHostJoining = sessionId === room.hostId;
+    
+    // If host is joining, update hostId to the playerId
+    if (isHostJoining) {
+      room.hostId = playerId;
+      room.gameState.hostId = playerId;
+    }
+
     // Add player to game state
     const newPlayer: Player = {
       id: playerId,
@@ -95,7 +104,7 @@ export class RoomManager {
       hand: [],
       sideDeck: [],
       isActive: true,
-      isHost: playerId === room.hostId,
+      isHost: isHostJoining,
       position: room.gameState.players.length
     };
 
