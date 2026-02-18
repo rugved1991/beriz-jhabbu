@@ -6,7 +6,10 @@ interface GameSetupProps {
 }
 
 export function GameSetup({ onCreateRoom }: GameSetupProps) {
+  const [mode, setMode] = useState<'create' | 'join'>('create');
   const [playerCount, setPlayerCount] = useState<string>('4');
+  const [roomId, setRoomId] = useState<string>('');
+  const [playerName, setPlayerName] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isCreating, setIsCreating] = useState<boolean>(false);
 
@@ -31,64 +34,174 @@ export function GameSetup({ onCreateRoom }: GameSetupProps) {
     }
   };
 
+  const handleJoinRoom = () => {
+    if (!roomId.trim()) {
+      setError('Please enter a room ID');
+      return;
+    }
+    if (!playerName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+    
+    setError('');
+    // Navigate to lobby with room ID - the App will handle joining
+    window.location.href = `/?room=${roomId.toUpperCase()}&name=${encodeURIComponent(playerName)}`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-800 to-green-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
         <h1 className="text-3xl font-bold text-green-800 mb-2 text-center">
           Beriz Jhabbu
         </h1>
-        <p className="text-gray-700 mb-8 text-center">
-          Create a new game room
+        <p className="text-gray-700 mb-6 text-center">
+          Online Multiplayer Card Game
         </p>
 
-        <form 
-          className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleCreateRoom();
-          }}
-        >
-          <div>
-            <label 
-              htmlFor="playerCount" 
-              className="block text-sm font-medium text-gray-800 mb-2"
-            >
-              Number of Players (2-16)
-            </label>
-            <input
-              id="playerCount"
-              type="number"
-              min="2"
-              max="16"
-              value={playerCount}
-              onChange={(e) => setPlayerCount(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-4 focus:ring-green-400 focus:border-green-500 focus:outline-none"
-              placeholder="Enter number of players"
-              aria-required="true"
-              aria-invalid={error ? 'true' : 'false'}
-              aria-describedby={error ? 'player-count-error' : undefined}
-            />
-          </div>
-
-          {error && (
-            <div 
-              id="player-count-error"
-              className="bg-red-50 border border-red-400 rounded-lg p-3"
-              role="alert"
-            >
-              <p className="text-sm text-red-900">{error}</p>
-            </div>
-          )}
-
+        {/* Mode Toggle */}
+        <div className="flex gap-2 mb-6">
           <button
-            type="submit"
-            disabled={isCreating}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-400 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            aria-label="Create game room"
+            onClick={() => {
+              setMode('create');
+              setError('');
+            }}
+            className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-colors ${
+              mode === 'create'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
           >
-            {isCreating ? 'Creating Room...' : 'Create Room'}
+            Create Room
           </button>
-        </form>
+          <button
+            onClick={() => {
+              setMode('join');
+              setError('');
+            }}
+            className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-colors ${
+              mode === 'join'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
+          >
+            Join Room
+          </button>
+        </div>
+
+        {mode === 'create' ? (
+          <form 
+            className="space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleCreateRoom();
+            }}
+          >
+            <div>
+              <label 
+                htmlFor="playerCount" 
+                className="block text-sm font-medium text-gray-800 mb-2"
+              >
+                Number of Players (2-16)
+              </label>
+              <input
+                id="playerCount"
+                type="number"
+                min="2"
+                max="16"
+                value={playerCount}
+                onChange={(e) => setPlayerCount(e.target.value)}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-4 focus:ring-green-400 focus:border-green-500 focus:outline-none"
+                placeholder="Enter number of players"
+                aria-required="true"
+                aria-invalid={error ? 'true' : 'false'}
+                aria-describedby={error ? 'player-count-error' : undefined}
+              />
+            </div>
+
+            {error && (
+              <div 
+                id="player-count-error"
+                className="bg-red-50 border border-red-400 rounded-lg p-3"
+                role="alert"
+              >
+                <p className="text-sm text-red-900">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isCreating}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-400 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              aria-label="Create game room"
+            >
+              {isCreating ? 'Creating Room...' : 'Create Room'}
+            </button>
+          </form>
+        ) : (
+          <form 
+            className="space-y-6"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleJoinRoom();
+            }}
+          >
+            <div>
+              <label 
+                htmlFor="roomId" 
+                className="block text-sm font-medium text-gray-800 mb-2"
+              >
+                Room ID
+              </label>
+              <input
+                id="roomId"
+                type="text"
+                value={roomId}
+                onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-4 focus:ring-green-400 focus:border-green-500 focus:outline-none uppercase"
+                placeholder="Enter 6-character room ID"
+                maxLength={6}
+                aria-required="true"
+              />
+            </div>
+
+            <div>
+              <label 
+                htmlFor="playerName" 
+                className="block text-sm font-medium text-gray-800 mb-2"
+              >
+                Your Name
+              </label>
+              <input
+                id="playerName"
+                type="text"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-4 focus:ring-green-400 focus:border-green-500 focus:outline-none"
+                placeholder="Enter your name"
+                maxLength={20}
+                aria-required="true"
+              />
+            </div>
+
+            {error && (
+              <div 
+                className="bg-red-50 border border-red-400 rounded-lg p-3"
+                role="alert"
+              >
+                <p className="text-sm text-red-900">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-400"
+              aria-label="Join game room"
+            >
+              Join Room
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

@@ -63,6 +63,7 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
   const [hasJoined, setHasJoined] = useState<boolean>(false);
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [isStarting, setIsStarting] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
 
   const handleJoinRoom = async () => {
     // Validate player name
@@ -106,6 +107,25 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
     }
   };
 
+  const handleCopyRoomCode = async () => {
+    try {
+      const shareUrl = `${window.location.origin}/?room=${roomId}&name=`;
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = `${window.location.origin}/?room=${roomId}&name=`;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-800 to-green-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-2xl p-8 max-w-4xl w-full">
@@ -113,15 +133,37 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
           <h1 className="text-3xl font-bold text-green-800 mb-2 text-center">
             Game Lobby
           </h1>
-          <div className="flex items-center justify-center gap-4 text-gray-600">
-            <div className="bg-green-50 border border-green-300 rounded px-4 py-2">
-              <span className="text-sm font-medium">Room ID: </span>
-              <span className="font-mono font-bold text-green-800">{roomId}</span>
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-4 text-gray-600">
+              <div className="bg-green-50 border border-green-300 rounded px-4 py-2">
+                <span className="text-sm font-medium">Room ID: </span>
+                <span className="font-mono font-bold text-green-800">{roomId}</span>
+              </div>
+              <div className="bg-blue-50 border border-blue-300 rounded px-4 py-2">
+                <span className="text-sm font-medium">Players: </span>
+                <span className="font-bold text-blue-800">{players.length}/{maxPlayers}</span>
+              </div>
             </div>
-            <div className="bg-blue-50 border border-blue-300 rounded px-4 py-2">
-              <span className="text-sm font-medium">Players: </span>
-              <span className="font-bold text-blue-800">{players.length}/{maxPlayers}</span>
-            </div>
+            <button
+              onClick={handleCopyRoomCode}
+              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+            >
+              {copied ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Link Copied!
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Share Room Link
+                </>
+              )}
+            </button>
           </div>
         </div>
 

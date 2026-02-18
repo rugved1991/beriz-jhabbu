@@ -170,6 +170,45 @@ function App() {
       }
     };
 
+    // Check for URL parameters (join room via link)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomIdParam = urlParams.get('room');
+    const playerNameParam = urlParams.get('name');
+    
+    if (roomIdParam && playerNameParam) {
+      // Clear URL parameters
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Join room after connection
+      const joinFromUrl = async () => {
+        setIsLoading(true);
+        setLoadingMessage('Joining room...');
+        try {
+          await handleJoinRoom(playerNameParam);
+        } catch (error) {
+          console.error('Failed to join from URL:', error);
+          setGlobalError('Failed to join room. Please try again.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      // Set room ID and wait for connection
+      setGameState(prev => ({ ...prev, roomId: roomIdParam }));
+      
+      if (socketManager.isConnected()) {
+        joinFromUrl();
+      } else {
+        socketManager.onConnect(() => {
+          joinFromUrl();
+        });
+      }
+      
+      return () => {
+        socketManager.disconnect();
+      };
+    }
+
     // Wait for connection before attempting reconnection
     if (socketManager.isConnected()) {
       attemptReconnection();
