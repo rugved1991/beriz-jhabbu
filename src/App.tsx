@@ -9,6 +9,9 @@ import GameOver from './components/GameOver';
 import RulesModal from './components/RulesModal';
 import JhabbuAnnouncement from './components/JhabbuAnnouncement';
 import PhaseTransition from './components/PhaseTransition';
+import ConnectionStatus from './components/ConnectionStatus';
+import LoadingOverlay from './components/LoadingOverlay';
+import ErrorMessage from './components/ErrorMessage';
 import { generateRoomId } from './utils/roomUtils';
 import { calculateDeckCount, generateDecks, dealCards } from './utils/deckUtils';
 import { generateCardPosition } from './utils/cardPositionUtils';
@@ -18,6 +21,7 @@ import { handlePhase2TrickWithElimination, transitionToPhase2 } from './utils/ph
 import { formatCardPlayError } from './utils/validation';
 import { isBot, botSelectPhase1Card, botSelectPhase2Cards, getBotDelay } from './utils/botAI';
 import { processJhabbuPlay } from './utils/jhabbuHelper';
+import { socketManager, ConnectionStatus as ConnectionStatusType } from './services/SocketManager';
 
 function App() {
   // Global game state
@@ -43,6 +47,16 @@ function App() {
 
   // Error message for card play validation
   const [cardPlayError, setCardPlayError] = useState<string>('');
+
+  // Global error message (for network errors, room errors, etc.)
+  const [globalError, setGlobalError] = useState<string | null>(null);
+
+  // Connection status tracking
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusType>('disconnected');
+
+  // Loading states
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingMessage, setLoadingMessage] = useState<string>('Loading...');
 
   // Rules modal state
   const [isRulesOpen, setIsRulesOpen] = useState<boolean>(false);
@@ -70,7 +84,115 @@ function App() {
   const [showPhaseTransition, setShowPhaseTransition] = useState<boolean>(false);
 
   /**
-   * Bot AI: Automatically play for bot players
+   * Socket Manager: Initialize connection and event listeners
+   */
+  useEffect(() => {
+    // Connect to server
+    socketManager.connect();
+
+    // Track connection status
+    setConnectionStatus(socketManager.getConnectionStatus());
+    socketManager.onConnectionStatusChange((status) => {
+      setConnectionStatus(status);
+    });
+
+    // Setup event listeners
+    socketManager.onGameStateUpdated(({ gameState: newGameState, event }) => {
+      console.log('Game state updated from server:', { event, phase: newGameState.phase });
+      setGameState(newGameState);
+      
+      // Update card positions based on the event
+      if (event === 'cardPlayed') {
+        // Add position for newly played card(s)
+        const newCards = newGameState.phase === 'JHABBU' 
+          ? newGameState.trickCards.map((tc: any) => tc.card)
+          : newGameState.table;
+        
+        setCardPositions(currentPositions => {
+          const newPositions = new Map(currentPositions);
+          newCards.forEach((card: any) => {
+            if (!newPositions.has(card.id)) {
+              const position = generateCardPosition(Array.from(newPositions.values()));
+              newPositions.set(card.id, position);
+            }
+          });
+          return newPositions;
+        });
+      } else if (event === 'trickComplete' || event === 'phaseTransition') {
+        // Clear card positions when trick completes or phase changes
+        setCardPositions(new Map());
+        if (event === 'phaseTransition') {
+          setShowPhaseTransition(true);
+        }
+      } else if (event === 'jhabbuAnnouncement') {
+        // Jhabbu announcement will be handled by the game state update
+        console.log('Jhabbu announcement event received');
+        // Clear card positions for new trick
+        setCardPositions(new Map());
+      }
+    });
+
+    socketManager.onPlayerJoined(({ players }) => {
+      console.log('Player joined, updating player list');
+      setGameState(prev => ({ ...prev, players }));
+    });
+
+    socketManager.onGameStarted(({ gameState: newGameState }) => {
+      console.log('Game started from server');
+      setGameState(newGameState);
+    });
+
+    // Attempt to reconnect if session exists in localStorage
+    const attemptReconnection = async () => {
+      const storedSessionId = localStorage.getItem('sessionId');
+      const storedRoomId = localStorage.getItem('roomId');
+      
+      if (storedSessionId && storedRoomId) {
+        console.log('Found stored session, attempting reconnection...', { storedRoomId, storedSessionId });
+        setIsLoading(true);
+        setLoadingMessage('Reconnecting to your game...');
+        
+        try {
+          // Try to rejoin with the stored session
+          const { sessionId, playerId, gameState: serverGameState } = await socketManager.joinRoom(
+            storedRoomId,
+            'Reconnecting...', // Placeholder name, server should use existing player name
+            storedSessionId
+          );
+          
+          console.log('Reconnection successful!', { roomId: storedRoomId, playerId });
+          setGameState(serverGameState);
+          setCurrentUserId(playerId);
+        } catch (error) {
+          console.log('Reconnection failed, clearing stored session:', error);
+          // Clear invalid session data
+          localStorage.removeItem('sessionId');
+          localStorage.removeItem('roomId');
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    // Wait for connection before attempting reconnection
+    if (socketManager.isConnected()) {
+      attemptReconnection();
+    } else {
+      socketManager.onConnect(() => {
+        attemptReconnection();
+      });
+    }
+
+    // Cleanup on unmount
+    return () => {
+      socketManager.disconnect();
+    };
+  }, []);
+
+  /**
+   * Bot AI: Automatically play for bot players (temporary local implementation)
+   * NOTE: This will be replaced by server-side bot logic in Task 12
+   * For now, bots still play locally but send moves through the socket
    */
   useEffect(() => {
     // Only run during active game phases
@@ -108,7 +230,7 @@ function App() {
     setIsBotThinking(true);
 
     // Schedule bot move after a delay
-    const timeoutId = setTimeout(() => {
+    const timeoutId = setTimeout(async () => {
       // Get current state snapshot
       const currentPlayer = gameState.players[gameState.currentPlayerIndex];
       
@@ -123,84 +245,13 @@ function App() {
           // Bot plays in Phase 1
           const cardToPlay = botSelectPhase1Card(currentPlayer, gameState);
           
-          const result = handlePhase1CardPlay(
-            currentPlayer.id,
-            cardToPlay,
-            gameState.players,
-            gameState.table
-          );
-
-          if (!result.success) {
-            console.error('Bot card play failed:', result.error);
-            setIsBotThinking(false);
-            return;
-          }
-
-          // Update card positions FIRST, before game state
-          setCardPositions(currentPositions => {
-            let newPositions = new Map(currentPositions);
-            
-            if (result.penaltyCards) {
-              // Penalty occurred - remove positions for collected cards
-              result.penaltyCards.forEach(card => {
-                newPositions.delete(card.id);
-              });
-            } else {
-              // No penalty - add position for the played card
-              const position = generateCardPosition(Array.from(newPositions.values()));
-              newPositions.set(cardToPlay!.id, position);
-            }
-            
-            return newPositions;
-          });
-
-          // Update game state
-          let newState: GameState = {
-            ...gameState,
-            players: result.updatedPlayers,
-            table: result.updatedTable
-          };
-
-          // Check if Phase 1 is complete
-          if (result.phase1Complete) {
-            // Move remaining table cards to last player
-            const finalPlayers = handlePhase1Completion(
-              currentPlayer.id,
-              result.updatedPlayers,
-              result.updatedTable
-            );
-
-            // Prepare for Phase 2 - use finalPlayers, not result.updatedPlayers
-            const phase2Players = transitionToPhase2(finalPlayers);
-
-            // Show phase transition announcement
-            setShowPhaseTransition(true);
-
-            // Update newState with phase2Players BEFORE transition
-            newState = {
-              ...newState,
-              players: phase2Players,
-              table: [],
-              leadSuit: null,
-              trickCards: []
-            };
-
-            // Now transition to JHABBU with updated players
-            newState = transitionToPhase(newState, 'JHABBU');
-            setCardPositions(new Map()); // Clear table positions
-          }
-
-          // Move to next player
-          const nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-          newState.currentPlayerIndex = nextPlayerIndex;
-
-          setGameState(newState);
+          // Send bot move through socket (will be validated by server)
+          await handlePlayCard(cardToPlay);
           setIsBotThinking(false);
         } else if (gameState.phase === 'JHABBU') {
           // Bot plays in Phase 2
           const cardsToPlay = botSelectPhase2Cards(currentPlayer, gameState);
           if (cardsToPlay.length === 0) {
-            // Bot has no cards - should not happen if isActive check works
             console.error('Bot has no cards but is still active');
             setIsBotThinking(false);
             return;
@@ -208,114 +259,22 @@ function App() {
 
           // Smart Jhabbu: If multiple cards selected, keep lowest and give rest as Jhabbu
           let finalCardsToPlay: Card[];
-          let lowestCardToKeep: Card | null = null;
 
           if (cardsToPlay.length > 1) {
-            const { jhabbuCards, lowestCard } = processJhabbuPlay(cardsToPlay);
+            const { jhabbuCards } = processJhabbuPlay(cardsToPlay);
             finalCardsToPlay = jhabbuCards;
-            lowestCardToKeep = lowestCard;
             
             console.log('Bot Smart Jhabbu Processing:', {
               botName: currentPlayer.name,
               selectedCards: cardsToPlay.map(c => `${c.rank}${c.suit}`),
-              jhabbuCards: jhabbuCards.map(c => `${c.rank}${c.suit}`),
-              lowestCard: `${lowestCard.rank}${lowestCard.suit}`
+              jhabbuCards: jhabbuCards.map(c => `${c.rank}${c.suit}`)
             });
           } else {
             finalCardsToPlay = cardsToPlay;
           }
 
-          // Handle the bot's Phase 2 play
-          const expectedPlayerId = gameState.players[gameState.currentPlayerIndex].id;
-
-          const result = handlePhase2TrickWithElimination(
-            currentPlayer.id,
-            finalCardsToPlay,
-            gameState.players,
-            gameState.trickCards,
-            gameState.leadSuit,
-            expectedPlayerId
-          );
-
-          if (!result.success) {
-            console.error('Bot card play failed:', result.error);
-            setIsBotThinking(false);
-            return;
-          }
-
-          // Update card positions for Phase 2
-          setCardPositions(currentPositions => {
-            let newPositions = new Map(currentPositions);
-            
-            if (result.trickComplete) {
-              // Trick is complete - clear all positions
-              return new Map();
-            } else {
-              // Add positions for all played cards
-              finalCardsToPlay.forEach(card => {
-                const position = generateCardPosition(Array.from(newPositions.values()));
-                newPositions.set(card.id, position);
-              });
-              return newPositions;
-            }
-          });
-
-          let newState: GameState = {
-            ...gameState,
-            players: result.updatedPlayers,
-            trickCards: result.updatedTrickCards,
-            leadSuit: result.leadSuit
-          };
-
-          // If trick is complete, update leader
-          if (result.trickComplete && result.nextLeaderId) {
-            const nextLeaderIndex = newState.players.findIndex(p => p.id === result.nextLeaderId);
-            newState.currentPlayerIndex = nextLeaderIndex;
-            newState.leadSuit = null;
-            
-            // If this was a Jhabbu dump, show announcement
-            if (result.wasJhabbu && result.jhabbuGiverId && result.trickWinnerId) {
-              const jhabbuGiverName = gameState.players.find(p => p.id === result.jhabbuGiverId)?.name || 'Unknown';
-              const jhabbuReceiverName = gameState.players.find(p => p.id === result.trickWinnerId)?.name || 'Unknown';
-              
-              setJhabbuAnnouncement({
-                jhabbuGiver: jhabbuGiverName,
-                jhabbuReceiver: jhabbuReceiverName,
-                cardCount: result.jhabbuCardCount || 0
-              });
-              
-              // If bot kept a lowest card, set up auto-play
-              if (lowestCardToKeep && result.nextLeaderId === currentPlayer.id) {
-                setJhabbuAutoPlay({
-                  playerId: currentPlayer.id,
-                  cardId: lowestCardToKeep.id // Store card ID instead of card object
-                });
-              }
-            }
-            
-            console.log('Bot Phase 2 Trick Complete - Setting Next Leader:', {
-              nextLeaderId: result.nextLeaderId,
-              nextLeaderName: newState.players[nextLeaderIndex]?.name,
-              nextLeaderIndex,
-              trickCards: result.updatedTrickCards.length,
-              wasJhabbu: result.wasJhabbu
-            });
-          } else {
-            // Move to next active player
-            let nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-            while (!gameState.players[nextPlayerIndex].isActive) {
-              nextPlayerIndex = (nextPlayerIndex + 1) % gameState.players.length;
-            }
-            newState.currentPlayerIndex = nextPlayerIndex;
-          }
-
-          // Check if game is over
-          if (result.gameOver && result.loserId) {
-            newState.loser = result.loserId;
-            newState = transitionToPhase(newState, 'GAME_OVER');
-          }
-
-          setGameState(newState);
+          // Send bot move through socket (will be validated by server)
+          await handlePlayCard(finalCardsToPlay);
           setIsBotThinking(false);
         }
       } catch (error) {
@@ -414,146 +373,107 @@ function App() {
   }, [jhabbuAutoPlay, cardPlayError]);
 
   /**
-   * Handle room creation (Requirements 13.1)
+   * Handle room creation (Requirements 4.1, 15.2)
    */
-  const handleCreateRoom = useCallback((playerCount: number): string => {
-    const roomId = generateRoomId();
-    const hostId = `player-${Date.now()}`;
+  const handleCreateRoom = useCallback(async (playerCount: number): Promise<string> => {
+    setIsLoading(true);
+    setLoadingMessage('Creating room...');
+    setGlobalError(null);
+    
+    try {
+      const { roomId, sessionId } = await socketManager.createRoom(playerCount);
+      
+      // Store session ID in localStorage for reconnection
+      localStorage.setItem('sessionId', sessionId);
+      localStorage.setItem('roomId', roomId);
+      
+      // Update local state to show lobby
+      setGameState(prev => ({
+        ...prev,
+        phase: 'LOBBY',
+        roomId,
+        maxPlayers: playerCount
+      }));
 
-    setGameState({
-      phase: 'LOBBY',
-      roomId,
-      hostId,
-      maxPlayers: playerCount,
-      players: [],
-      currentPlayerIndex: 0,
-      dealerId: '', // Will be set when game starts
-      table: [],
-      leadSuit: null,
-      trickCards: [],
-      loser: null
-    });
+      setCurrentUserId(sessionId);
 
-    setCurrentUserId(hostId);
-
-    return roomId;
+      return roomId;
+    } catch (error) {
+      console.error('Failed to create room:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create room';
+      setGlobalError(errorMessage);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   /**
-   * Handle player joining room (Requirements 13.2)
+   * Handle player joining room (Requirements 4.2, 15.3)
    */
-  const handleJoinRoom = useCallback((playerName: string) => {
-    // Generate a unique player ID
-    // If this is the host's first join and currentUserId matches hostId, use it
-    // Otherwise, always generate a new unique ID
-    const isHostFirstJoin = !currentUserId && gameState.hostId;
-    const playerId = isHostFirstJoin 
-      ? gameState.hostId 
-      : `player-${Date.now()}-${Math.random()}`;
+  const handleJoinRoom = useCallback(async (playerName: string) => {
+    setIsLoading(true);
+    setLoadingMessage('Joining room...');
+    setGlobalError(null);
     
-    const isHost = playerId === gameState.hostId;
-
-    const newPlayer: Player = {
-      id: playerId,
-      name: playerName,
-      hand: [],
-      sideDeck: [],
-      isActive: true,
-      isHost,
-      position: gameState.players.length
-    };
-
-    setGameState(prev => ({
-      ...prev,
-      players: [...prev.players, newPlayer]
-    }));
-
-    // Only set currentUserId if it's not already set (for the host)
-    if (!currentUserId) {
+    try {
+      // Check for existing session ID in localStorage
+      const storedSessionId = localStorage.getItem('sessionId');
+      const storedRoomId = localStorage.getItem('roomId') || gameState.roomId;
+      
+      const { sessionId, playerId, gameState: serverGameState } = await socketManager.joinRoom(
+        storedRoomId,
+        playerName,
+        storedSessionId || undefined
+      );
+      
+      // Store session ID in localStorage for reconnection
+      localStorage.setItem('sessionId', sessionId);
+      localStorage.setItem('roomId', storedRoomId);
+      
+      // Update local state with server game state
+      setGameState(serverGameState);
       setCurrentUserId(playerId);
+      
+      console.log('Joined room successfully:', { roomId: storedRoomId, playerId, sessionId });
+    } catch (error) {
+      console.error('Failed to join room:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to join room';
+      setGlobalError(errorMessage);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-  }, [currentUserId, gameState.hostId, gameState.players.length]);
+  }, [gameState.roomId]);
 
   /**
-   * Handle game start - deal cards and transition to Phase 1
+   * Handle game start - emit to server (Requirements 4.4)
    */
-  const handleStartGame = useCallback(() => {
-    // Create new state starting from current gameState
-    // If coming from GAME_OVER, we need to manually set to DEALING
-    let newState: GameState;
+  const handleStartGame = useCallback(async () => {
+    setIsLoading(true);
+    setLoadingMessage('Starting game...');
+    setGlobalError(null);
     
-    if (gameState.phase === 'GAME_OVER') {
-      // Manual transition from GAME_OVER to DEALING (restart scenario)
-      newState = {
-        ...gameState,
-        phase: 'DEALING',
-        currentPlayerIndex: 0, // Will be set properly after dealer is determined
-        table: [],
-        leadSuit: null,
-        trickCards: [],
-        loser: null
-      };
-    } else {
-      // Normal transition to DEALING phase
-      newState = transitionToPhase(gameState, 'DEALING');
+    try {
+      const roomId = localStorage.getItem('roomId') || gameState.roomId;
+      await socketManager.startGame(roomId, currentUserId);
+      
+      console.log('Game start request sent to server');
+      // Game state will be updated via onGameStarted event listener
+    } catch (error) {
+      console.error('Failed to start game:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to start game';
+      setGlobalError(errorMessage);
+      setCardPlayError(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Determine the dealer
-    let dealerId: string;
-    let dealerIndex: number;
-    if (gameState.dealerId) {
-      // If there's already a dealer, rotate to the next player clockwise
-      const currentDealerIndex = gameState.players.findIndex(p => p.id === gameState.dealerId);
-      dealerIndex = (currentDealerIndex + 1) % gameState.players.length;
-      dealerId = gameState.players[dealerIndex].id;
-    } else {
-      // First game - randomly select a dealer
-      dealerIndex = Math.floor(Math.random() * gameState.players.length);
-      dealerId = gameState.players[dealerIndex].id;
-      console.log('First game - Random dealer selected:', {
-        dealerIndex,
-        dealerId,
-        dealerName: gameState.players[dealerIndex].name
-      });
-    }
-    
-    newState.dealerId = dealerId;
-
-    // Calculate deck count and generate cards
-    const deckCount = calculateDeckCount(gameState.players.length);
-    const deck = generateDecks(deckCount);
-
-    // Deal cards to players
-    const hands = dealCards(deck, gameState.players.length);
-
-    // Update players with their hands and reset their state
-    const updatedPlayers = gameState.players.map((player, index) => ({
-      ...player,
-      hand: hands[index],
-      sideDeck: [],
-      isActive: true,
-      finishPosition: undefined // Reset finish position for new game
-    }));
-
-    newState = {
-      ...newState,
-      players: updatedPlayers
-    };
-
-    // Transition to BERIZ phase
-    newState = transitionToPhase(newState, 'BERIZ');
-    
-    // Set starting player to the left of dealer (clockwise)
-    const startingPlayerIndex = (dealerIndex + 1) % gameState.players.length;
-    newState.currentPlayerIndex = startingPlayerIndex;
-
-    setGameState(newState);
-  }, [gameState]);
+  }, [gameState.roomId, currentUserId]);
 
   /**
-   * Handle card play - routes to Phase 1 or Phase 2 logic
+   * Handle card play - emit to server (Requirements 4.4)
    */
-  const handlePlayCard = useCallback((cardOrCards: Card | Card[]) => {
+  const handlePlayCard = useCallback(async (cardOrCards: Card | Card[]) => {
     console.log('handlePlayCard called:', {
       cardOrCards: Array.isArray(cardOrCards) 
         ? cardOrCards.map(c => `${c.rank}${c.suit}`)
@@ -581,224 +501,19 @@ function App() {
 
     // Normalize to array
     const cards = Array.isArray(cardOrCards) ? cardOrCards : [cardOrCards];
-    const card = cards[0]; // For Phase 1, always single card
 
-    // Determine the effective user ID (fallback to first player if currentUserId is invalid)
-    const localPlayer = gameState.players.find(p => p.id === currentUserId) || gameState.players[0];
-    const effectiveUserId = localPlayer?.id || currentUserId;
-
-    if (gameState.phase === 'BERIZ') {
-      // Phase 1 logic
-      const result = handlePhase1CardPlay(
-        effectiveUserId,
-        card,
-        gameState.players,
-        gameState.table
-      );
-
-      if (!result.success) {
-        const errorMessage = formatCardPlayError(result.error || 'Card play failed');
-        setCardPlayError(errorMessage);
-        console.error('Card play failed:', result.error);
-        return;
-      }
-
-      // Update card positions
-      let newPositions = new Map(cardPositions);
+    try {
+      const roomId = localStorage.getItem('roomId') || gameState.roomId;
+      await socketManager.playCard(roomId, currentUserId, cards);
       
-      if (result.penaltyCards) {
-        // Penalty occurred - remove positions for collected cards
-        result.penaltyCards.forEach(penaltyCard => {
-          newPositions.delete(penaltyCard.id);
-        });
-      } else {
-        // No penalty - add position for the played card
-        const position = generateCardPosition(Array.from(newPositions.values()));
-        newPositions.set(card.id, position);
-      }
-
-      setCardPositions(newPositions);
-
-      // Update game state
-      let newState: GameState = {
-        ...gameState,
-        players: result.updatedPlayers,
-        table: result.updatedTable
-      };
-
-      // Check if Phase 1 is complete
-      if (result.phase1Complete) {
-        // Move remaining table cards to last player (the one who just played)
-        const finalPlayers = handlePhase1Completion(
-          effectiveUserId,
-          result.updatedPlayers,
-          result.updatedTable
-        );
-
-        // Prepare for Phase 2
-        const phase2Players = transitionToPhase2(finalPlayers);
-
-        // Show phase transition announcement
-        setShowPhaseTransition(true);
-
-        // Transition to JHABBU phase
-        newState = {
-          ...newState,
-          players: phase2Players,
-          table: [],
-          leadSuit: null,
-          trickCards: []
-        };
-
-        newState = transitionToPhase(newState, 'JHABBU');
-        setCardPositions(new Map()); // Clear table positions
-      }
-
-      // Move to next player
-      const nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-      newState.currentPlayerIndex = nextPlayerIndex;
-
-      setGameState(newState);
-    } else if (gameState.phase === 'JHABBU') {
-      // Phase 2 logic - support single card or multiple cards (Jhabbu dump)
-      const expectedPlayerId = gameState.players[gameState.currentPlayerIndex].id;
-
-      // Smart Jhabbu: If multiple cards selected, keep lowest and give rest as Jhabbu
-      let cardsToPlay: Card[];
-      let lowestCardToKeep: Card | null = null;
-
-      if (cards.length > 1) {
-        const { jhabbuCards, lowestCard } = processJhabbuPlay(cards);
-        cardsToPlay = jhabbuCards;
-        lowestCardToKeep = lowestCard;
-        
-        console.log('Smart Jhabbu Processing:', {
-          selectedCards: cards.map(c => `${c.rank}${c.suit}`),
-          jhabbuCards: jhabbuCards.map(c => `${c.rank}${c.suit}`),
-          lowestCard: `${lowestCard.rank}${lowestCard.suit}`,
-          playerId: effectiveUserId
-        });
-      } else {
-        cardsToPlay = cards;
-        console.log('Single card play (not Jhabbu):', {
-          card: `${cards[0].rank}${cards[0].suit}`,
-          playerId: effectiveUserId
-        });
-      }
-
-      const result = handlePhase2TrickWithElimination(
-        effectiveUserId,
-        cardsToPlay,
-        gameState.players,
-        gameState.trickCards,
-        gameState.leadSuit,
-        expectedPlayerId
-      );
-
-      if (!result.success) {
-        const errorMessage = formatCardPlayError(result.error || 'Card play failed');
-        setCardPlayError(errorMessage);
-        console.error('Phase 2 Card play failed - Setting error message:', {
-          error: result.error,
-          formattedError: errorMessage,
-          playerId: effectiveUserId
-        });
-        return;
-      }
-
-      // Update card positions for Phase 2
-      let newPositions = new Map(cardPositions);
-      
-      if (result.trickComplete) {
-        // Trick is complete - clear all positions
-        newPositions.clear();
-        
-        console.log('Trick Complete - Checking for Jhabbu auto-play:', {
-          lowestCardToKeep: lowestCardToKeep ? `${lowestCardToKeep.rank}${lowestCardToKeep.suit}` : null,
-          nextLeaderId: result.nextLeaderId,
-          effectiveUserId,
-          wasJhabbu: result.wasJhabbu,
-          shouldAutoPlay: lowestCardToKeep && result.nextLeaderId === effectiveUserId
-        });
-        
-        // If this was a Jhabbu dump, show announcement
-        if (result.wasJhabbu && result.trickWinnerId) {
-          const jhabbuReceiverName = gameState.players.find(p => p.id === result.trickWinnerId)?.name || 'Unknown';
-          const jhabbuGiverName = localPlayer?.name || 'Unknown';
-          
-          console.log('Setting up Jhabbu announcement:', {
-            jhabbuGiver: jhabbuGiverName,
-            jhabbuReceiver: jhabbuReceiverName,
-            cardCount: cardsToPlay.length,
-            lowestCard: lowestCardToKeep ? `${lowestCardToKeep.rank}${lowestCardToKeep.suit}` : 'none (eliminated)',
-            hasAutoPlay: !!lowestCardToKeep
-          });
-          
-          setJhabbuAnnouncement({
-            jhabbuGiver: jhabbuGiverName,
-            jhabbuReceiver: jhabbuReceiverName,
-            cardCount: cardsToPlay.length
-          });
-          
-          // Set up auto-play only if there's a card to keep
-          if (lowestCardToKeep && result.nextLeaderId === effectiveUserId) {
-            console.log('Setting up Jhabbu auto-play:', {
-              lowestCardId: lowestCardToKeep.id
-            });
-            
-            setJhabbuAutoPlay({
-              playerId: effectiveUserId,
-              cardId: lowestCardToKeep.id // Store card ID instead of card object
-            });
-          }
-        }
-      } else {
-        // Add positions for all played cards
-        cardsToPlay.forEach(playedCard => {
-          const position = generateCardPosition(Array.from(newPositions.values()));
-          newPositions.set(playedCard.id, position);
-        });
-      }
-
-      setCardPositions(newPositions);
-
-      let newState: GameState = {
-        ...gameState,
-        players: result.updatedPlayers,
-        trickCards: result.updatedTrickCards,
-        leadSuit: result.leadSuit
-      };
-
-      // If trick is complete, update leader
-      if (result.trickComplete && result.nextLeaderId) {
-        const nextLeaderIndex = newState.players.findIndex(p => p.id === result.nextLeaderId);
-        newState.currentPlayerIndex = nextLeaderIndex;
-        newState.leadSuit = null; // Reset for next trick
-        
-        console.log('Phase 2 Trick Complete - Setting Next Leader:', {
-          nextLeaderId: result.nextLeaderId,
-          nextLeaderName: newState.players[nextLeaderIndex]?.name,
-          nextLeaderIndex,
-          trickCards: result.updatedTrickCards.length
-        });
-      } else {
-        // Move to next active player
-        let nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-        while (!gameState.players[nextPlayerIndex].isActive) {
-          nextPlayerIndex = (nextPlayerIndex + 1) % gameState.players.length;
-        }
-        newState.currentPlayerIndex = nextPlayerIndex;
-      }
-
-      // Check if game is over
-      if (result.gameOver && result.loserId) {
-        newState.loser = result.loserId;
-        newState = transitionToPhase(newState, 'GAME_OVER');
-      }
-
-      setGameState(newState);
+      console.log('Card play sent to server');
+      // Game state will be updated via onGameStateUpdated event listener
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to play card';
+      setCardPlayError(formatCardPlayError(errorMessage));
+      console.error('Card play failed:', error);
     }
-  }, [gameState, currentUserId, cardPositions, isBotThinking, jhabbuAutoPlay]);
+  }, [gameState.roomId, currentUserId, isBotThinking, jhabbuAutoPlay]);
 
   /**
    * Handle game restart - reset game state and start a new round
@@ -878,20 +593,32 @@ function App() {
 
   // Render appropriate component based on phase
   if (gameState.phase === 'SETUP') {
-    return <GameSetup onCreateRoom={handleCreateRoom} />;
+    return (
+      <>
+        <GameSetup onCreateRoom={handleCreateRoom} />
+        <ConnectionStatus status={connectionStatus} />
+        <LoadingOverlay isLoading={isLoading} message={loadingMessage} />
+        <ErrorMessage error={globalError} onDismiss={() => setGlobalError(null)} />
+      </>
+    );
   }
 
   if (gameState.phase === 'LOBBY') {
     const isHost = currentUserId === gameState.hostId;
     return (
-      <Lobby
-        roomId={gameState.roomId}
-        maxPlayers={gameState.maxPlayers}
-        players={gameState.players}
-        isHost={isHost}
-        onJoinRoom={handleJoinRoom}
-        onStartGame={handleStartGame}
-      />
+      <>
+        <Lobby
+          roomId={gameState.roomId}
+          maxPlayers={gameState.maxPlayers}
+          players={gameState.players}
+          isHost={isHost}
+          onJoinRoom={handleJoinRoom}
+          onStartGame={handleStartGame}
+        />
+        <ConnectionStatus status={connectionStatus} />
+        <LoadingOverlay isLoading={isLoading} message={loadingMessage} />
+        <ErrorMessage error={globalError} onDismiss={() => setGlobalError(null)} />
+      </>
     );
   }
 
@@ -907,11 +634,16 @@ function App() {
     });
 
     return (
-      <GameOver
-        loser={loser}
-        winners={winners}
-        onNewGame={handleRestartGame}
-      />
+      <>
+        <GameOver
+          loser={loser}
+          winners={winners}
+          onNewGame={handleRestartGame}
+        />
+        <ConnectionStatus status={connectionStatus} />
+        <LoadingOverlay isLoading={isLoading} message={loadingMessage} />
+        <ErrorMessage error={globalError} onDismiss={() => setGlobalError(null)} />
+      </>
     );
   }
 
@@ -1061,6 +793,17 @@ function App() {
           onComplete={() => setShowPhaseTransition(false)}
         />
       )}
+
+      {/* Global UI Components */}
+      <ConnectionStatus 
+        status={connectionStatus} 
+        onReconnectSuccess={() => {
+          // Clear any errors on successful reconnection
+          setGlobalError(null);
+        }}
+      />
+      <LoadingOverlay isLoading={isLoading} message={loadingMessage} />
+      <ErrorMessage error={globalError} onDismiss={() => setGlobalError(null)} />
     </div>
   );
 }

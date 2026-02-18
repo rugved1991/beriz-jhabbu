@@ -7,8 +7,8 @@ interface LobbyProps {
   maxPlayers: number;
   players: Player[];
   isHost: boolean;
-  onJoinRoom: (playerName: string) => void;
-  onStartGame: () => void;
+  onJoinRoom: (playerName: string) => Promise<void>;
+  onStartGame: () => Promise<void>;
 }
 
 /**
@@ -61,8 +61,10 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
   const [playerName, setPlayerName] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [hasJoined, setHasJoined] = useState<boolean>(false);
+  const [isJoining, setIsJoining] = useState<boolean>(false);
+  const [isStarting, setIsStarting] = useState<boolean>(false);
 
-  const handleJoinRoom = () => {
+  const handleJoinRoom = async () => {
     // Validate player name
     const validation = validatePlayerName(playerName);
     if (!validation.valid) {
@@ -76,17 +78,32 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
     }
 
     setError('');
-    onJoinRoom(playerName.trim());
-    setHasJoined(true);
+    setIsJoining(true);
+    
+    try {
+      await onJoinRoom(playerName.trim());
+      setHasJoined(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to join room');
+    } finally {
+      setIsJoining(false);
+    }
   };
 
-  const handleStartGame = () => {
+  const handleStartGame = async () => {
     if (players.length < 2) {
       setError('Need at least 2 players to start');
       return;
     }
     setError('');
-    onStartGame();
+    setIsStarting(true);
+    
+    try {
+      await onStartGame();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start game');
+      setIsStarting(false);
+    }
   };
 
   return (
@@ -123,9 +140,10 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
               />
               <button
                 onClick={handleJoinRoom}
-                className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
+                disabled={isJoining}
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                Join
+                {isJoining ? 'Joining...' : 'Join'}
               </button>
             </div>
           </div>
@@ -217,14 +235,14 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
             
             <button
               onClick={handleStartGame}
-              disabled={players.length < 2}
+              disabled={players.length < 2 || isStarting}
               className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg ${
-                players.length < 2
+                players.length < 2 || isStarting
                   ? 'bg-gray-400 cursor-not-allowed text-gray-200'
                   : 'bg-green-600 hover:bg-green-700 text-white hover:shadow-xl'
               }`}
             >
-              {players.length < 2 ? 'Waiting for players...' : 'Start Game'}
+              {isStarting ? 'Starting...' : players.length < 2 ? 'Waiting for players...' : 'Start Game'}
             </button>
           </div>
         )}

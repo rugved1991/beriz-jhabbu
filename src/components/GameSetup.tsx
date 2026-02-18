@@ -2,14 +2,15 @@ import { useState } from 'react';
 import { validatePlayerCount } from '../utils/validation';
 
 interface GameSetupProps {
-  onCreateRoom: (playerCount: number) => string; // Returns room ID
+  onCreateRoom: (playerCount: number) => Promise<string>; // Returns room ID
 }
 
 export function GameSetup({ onCreateRoom }: GameSetupProps) {
   const [playerCount, setPlayerCount] = useState<string>('4');
   const [error, setError] = useState<string>('');
+  const [isCreating, setIsCreating] = useState<boolean>(false);
 
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     const count = parseInt(playerCount, 10);
     
     // Validate player count (Requirements 1.4)
@@ -20,7 +21,14 @@ export function GameSetup({ onCreateRoom }: GameSetupProps) {
     }
 
     setError('');
-    onCreateRoom(count);
+    setIsCreating(true);
+    
+    try {
+      await onCreateRoom(count);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create room');
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -74,10 +82,11 @@ export function GameSetup({ onCreateRoom }: GameSetupProps) {
 
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-400"
+            disabled={isCreating}
+            className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-400 disabled:bg-gray-400 disabled:cursor-not-allowed"
             aria-label="Create game room"
           >
-            Create Room
+            {isCreating ? 'Creating Room...' : 'Create Room'}
           </button>
         </form>
       </div>
