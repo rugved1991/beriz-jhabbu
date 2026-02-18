@@ -186,7 +186,15 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
 
           {/* Active/Eliminated status */}
           <div>
-            {player.isActive ? (
+            {!player.isConnected && player.isConnected !== undefined ? (
+              <span 
+                className="px-3 py-1 bg-orange-500 text-white text-xs font-semibold rounded-full"
+                role="status"
+                aria-label="Player is disconnected"
+              >
+                DISCONNECTED
+              </span>
+            ) : player.isActive ? (
               <span 
                 className="px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full"
                 role="status"
