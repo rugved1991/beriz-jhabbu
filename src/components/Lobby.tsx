@@ -65,6 +65,10 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
   const [isStarting, setIsStarting] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
+  // Check if user has already joined (either by creating room or joining via URL)
+  // If there are players in the list and user is host, they've already joined
+  const isAlreadyInRoom = players.length > 0 && isHost;
+
   const handleJoinRoom = async () => {
     // Validate player name
     const validation = validatePlayerName(playerName);
@@ -163,7 +167,7 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
         </div>
 
         {/* Join form for non-joined players */}
-        {!hasJoined && (
+        {!hasJoined && !isAlreadyInRoom && (
           <div className="mb-8 bg-gray-50 rounded-lg p-6">
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Join Game</h2>
             {players.length >= maxPlayers ? (
@@ -265,7 +269,7 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
         </div>
 
         {/* Start game button (host only) */}
-        {isHost && hasJoined && (
+        {isHost && (hasJoined || isAlreadyInRoom) && (
           <div className="space-y-3">
             {/* Add bot player button for testing */}
             {players.length < maxPlayers && (
@@ -292,7 +296,7 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
         )}
 
         {/* Waiting message for non-host players */}
-        {!isHost && hasJoined && (
+        {!isHost && (hasJoined || isAlreadyInRoom) && (
           <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 text-center">
             <p className="text-blue-800">Waiting for host to start the game...</p>
           </div>
