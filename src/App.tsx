@@ -222,6 +222,7 @@ function App() {
     return () => {
       socketManager.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
