@@ -22,20 +22,31 @@ function createHiddenCard(): Card {
  * Removes other players' hands to prevent cheating
  * @param gameState - The full game state
  * @param playerId - The ID of the player receiving the state
+ * @param disconnectedPlayers - Map of disconnected player IDs to disconnect time
  * @returns Filtered game state with only the player's hand visible
  */
-export function filterGameStateForPlayer(gameState: GameState, playerId: string): GameState {
+export function filterGameStateForPlayer(
+  gameState: GameState, 
+  playerId: string,
+  disconnectedPlayers?: Map<string, Date>
+): GameState {
   return {
     ...gameState,
     players: gameState.players.map(player => {
+      const isConnected = disconnectedPlayers ? !disconnectedPlayers.has(player.id) : true;
+      
       if (player.id === playerId) {
         // Player can see their own hand
-        return player;
+        return {
+          ...player,
+          isConnected
+        };
       } else {
         // Other players' hands are hidden - show count but not actual cards
         return {
           ...player,
-          hand: player.hand.map(() => createHiddenCard())
+          hand: player.hand.map(() => createHiddenCard()),
+          isConnected
         };
       }
     })
@@ -62,14 +73,22 @@ export function filterGameStateForBroadcast(gameState: GameState): Map<string, G
  * Creates a spectator-safe game state
  * All hands are hidden for spectators
  * @param gameState - The full game state
+ * @param disconnectedPlayers - Map of disconnected player IDs to disconnect time
  * @returns Game state with all hands hidden
  */
-export function filterGameStateForSpectator(gameState: GameState): GameState {
+export function filterGameStateForSpectator(
+  gameState: GameState,
+  disconnectedPlayers?: Map<string, Date>
+): GameState {
   return {
     ...gameState,
-    players: gameState.players.map(player => ({
-      ...player,
-      hand: player.hand.map(() => createHiddenCard())
-    }))
+    players: gameState.players.map(player => {
+      const isConnected = disconnectedPlayers ? !disconnectedPlayers.has(player.id) : true;
+      return {
+        ...player,
+        hand: player.hand.map(() => createHiddenCard()),
+        isConnected
+      };
+    })
   };
 }

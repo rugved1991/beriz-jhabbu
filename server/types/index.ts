@@ -19,6 +19,7 @@ export interface Player {
   sideDeck: Card[];
   isActive: boolean;
   isHost: boolean;
+  isConnected?: boolean; // Whether player is currently connected (undefined = connected for backward compatibility)
   position: number; // Position around the table (0 to N-1)
   finishPosition?: number; // Order of finishing (1 = first to finish, undefined = still playing or loser)
 }
