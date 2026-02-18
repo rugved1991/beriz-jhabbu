@@ -192,6 +192,23 @@ class SocketManager {
     });
   }
 
+  leaveRoom(roomId: string, playerId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Not connected'));
+        return;
+      }
+
+      this.socket.emit('leaveRoom', { roomId, playerId }, (response: any) => {
+        if (response.success) {
+          resolve();
+        } else {
+          reject(new Error(response.error || 'Failed to leave room'));
+        }
+      });
+    });
+  }
+
   // Event listeners
   onPlayerJoined(callback: EventCallback): void {
     if (this.socket) {
@@ -220,6 +237,12 @@ class SocketManager {
   onPlayerDisconnected(callback: EventCallback): void {
     if (this.socket) {
       this.socket.on('playerDisconnected', callback);
+    }
+  }
+
+  onPlayerRemoved(callback: EventCallback): void {
+    if (this.socket) {
+      this.socket.on('playerRemoved', callback);
     }
   }
 

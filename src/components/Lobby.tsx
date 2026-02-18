@@ -9,6 +9,7 @@ interface LobbyProps {
   isHost: boolean;
   onJoinRoom: (playerName: string, roomId?: string) => Promise<void>;
   onStartGame: () => Promise<void>;
+  onLeaveRoom: () => Promise<void>;
 }
 
 /**
@@ -57,7 +58,7 @@ function getBorderWidth(totalPlayers: number): string {
   return 'border';
 }
 
-export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStartGame }: LobbyProps) {
+export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStartGame, onLeaveRoom }: LobbyProps) {
   const [playerName, setPlayerName] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [hasJoined, setHasJoined] = useState<boolean>(false);
@@ -297,8 +298,16 @@ export function Lobby({ roomId, maxPlayers, players, isHost, onJoinRoom, onStart
 
         {/* Waiting message for non-host players */}
         {!isHost && (hasJoined || isAlreadyInRoom) && (
-          <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 text-center">
-            <p className="text-blue-800">Waiting for host to start the game...</p>
+          <div className="space-y-3">
+            <div className="bg-blue-50 border border-blue-300 rounded-lg p-4 text-center">
+              <p className="text-blue-800">Waiting for host to start the game...</p>
+            </div>
+            <button
+              onClick={onLeaveRoom}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
+            >
+              Leave Room
+            </button>
           </div>
         )}
       </div>

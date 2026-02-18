@@ -651,6 +651,68 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
     });
 
     /**
+     * Leave Room Event Handler
+     * Allows a player to voluntarily leave a room
+     */
+    socket.on('leaveRoom', (data: { roomId: string; playerId: string }, callback) => {
+      // Rate limiting
+      if (!checkRateLimit(socket, 'leaveRoom')) {
+        callback({ success: false, error: 'Too many requests. Please try again later.' });
+        return;
+      }
+
+      try {
+        const room = roomManager.getRoom(data.roomId);
+        
+        if (!room) {
+          callback({ success: false, error: 'Room not found' });
+          return;
+        }
+
+        console.log(`Player ${data.playerId} leaving room ${data.roomId}`);
+        
+        securityLogger.log({
+          event: 'Player left room',
+          roomId: data.roomId,
+          playerId: data.playerId,
+          socketId: socket.id,
+          severity: 'info'
+        });
+        
+        // Remove player from room
+        roomManager.removePlayerFromRoom(data.roomId, data.playerId);
+        
+        // Remove socket mapping
+        socketToPlayer.delete(socket.id);
+        
+        // Leave socket.io room
+        socket.leave(data.roomId);
+        
+        callback({ success: true });
+        
+        // Broadcast player removal to remaining players
+        const updatedRoom = roomManager.getRoom(data.roomId);
+        if (updatedRoom) {
+          io.to(data.roomId).emit('playerRemoved', { 
+            playerId: data.playerId,
+            players: updatedRoom.gameState.players 
+          });
+        }
+      } catch (error) {
+        console.error('Error leaving room:', error);
+        securityLogger.log({
+          event: 'Leave room failed',
+          roomId: data.roomId,
+          playerId: data.playerId,
+          socketId: socket.id,
+          details: error instanceof Error ? error.message : 'Unknown error',
+          severity: 'error'
+        });
+        callback({ success: false, error: 'Failed to leave room' });
+      }
+    });
+
+    /**
      * Disconnect Event Handler
      * Handles player disconnection - marks player as disconnected and sets timeout for removal
      */
@@ -698,8 +760,10 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         pauseGame: isCurrentPlayer && (room.gameState.phase === 'BERIZ' || room.gameState.phase === 'JHABBU')
       });
       
-      // Set timeout to remove player after 5 minutes
+      // Set timeout to remove player - shorter timeout for lobby phase
       const timeoutKey = `${roomId}:${playerId}`;
+      const timeoutDuration = room.gameState.phase === 'LOBBY' ? 30 * 1000 : 5 * 60 * 1000; // 30 seconds for lobby, 5 minutes for game
+      
       const timeout = setTimeout(() => {
         console.log(`Removing player ${playerId} from room ${roomId} due to timeout`);
         
@@ -723,7 +787,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         }
         
         disconnectTimeouts.delete(timeoutKey);
-      }, 5 * 60 * 1000); // 5 minutes
+      }, timeoutDuration);
       
       disconnectTimeouts.set(timeoutKey, timeout);
       socketToPlayer.delete(socket.id);

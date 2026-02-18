@@ -138,6 +138,11 @@ function App() {
       setGameState(newGameState);
     });
 
+    socketManager.onPlayerRemoved(({ playerId, players }) => {
+      console.log('Player removed:', playerId);
+      setGameState(prev => ({ ...prev, players }));
+    });
+
     // Attempt to reconnect if session exists in localStorage
     const attemptReconnection = async () => {
       const storedSessionId = localStorage.getItem('sessionId');
@@ -579,6 +584,43 @@ function App() {
   }, [gameState.roomId, currentUserId, isBotThinking, jhabbuAutoPlay, gameState.phase]);
 
   /**
+   * Handle leaving room - notify server and return to setup
+   */
+  const handleLeaveRoom = useCallback(async () => {
+    try {
+      const roomId = localStorage.getItem('roomId') || gameState.roomId;
+      await socketManager.leaveRoom(roomId, currentUserId);
+      
+      // Clear session and return to setup
+      localStorage.removeItem('sessionId');
+      localStorage.removeItem('roomId');
+      
+      // Reset to setup phase
+      setGameState({
+        phase: 'SETUP',
+        roomId: '',
+        hostId: '',
+        maxPlayers: 0,
+        players: [],
+        currentPlayerIndex: 0,
+        dealerId: '',
+        table: [],
+        leadSuit: null,
+        trickCards: [],
+        loser: null
+      });
+      
+      console.log('Left room successfully');
+    } catch (error) {
+      console.error('Failed to leave room:', error);
+      // Even if server call fails, clear local state
+      localStorage.removeItem('sessionId');
+      localStorage.removeItem('roomId');
+      window.location.href = '/';
+    }
+  }, [gameState.roomId, currentUserId]);
+
+  /**
    * Handle game restart - reset game state and start a new round
    */
   const handleRestartGame = useCallback(() => {
@@ -680,6 +722,7 @@ function App() {
           isHost={isHost}
           onJoinRoom={handleJoinRoom}
           onStartGame={handleStartGame}
+          onLeaveRoom={handleLeaveRoom}
         />
         <ConnectionStatus status={connectionStatus} />
         <LoadingOverlay isLoading={isLoading} message={loadingMessage} />
