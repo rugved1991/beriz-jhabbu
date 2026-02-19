@@ -655,21 +655,21 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           return;
         }
 
-        // Check bot limit (max 50% of room capacity)
-        const MAX_BOT_PERCENTAGE = 0.5;
+        // Check bot limit - allow bots to fill all available slots
         const botCount = room.gameState.players.filter(p => p.name.startsWith('Bot ')).length;
-        const maxBots = Math.floor(room.maxPlayers * MAX_BOT_PERCENTAGE);
-
-        if (botCount >= maxBots) {
+        const totalPlayers = room.gameState.players.length;
+        
+        // Check if room is full
+        if (totalPlayers >= room.maxPlayers) {
           securityLogger.log({
-            event: 'Bot limit reached',
+            event: 'Room full - cannot add bot',
             roomId: data.roomId,
             playerId: data.playerId,
             socketId: socket.id,
-            details: `Current bots: ${botCount}, Max: ${maxBots}`,
-            severity: 'warning'
+            details: `Room at capacity: ${totalPlayers}/${room.maxPlayers}`,
+            severity: 'info'
           });
-          callback({ success: false, error: `Maximum ${maxBots} bots allowed in this room` });
+          callback({ success: false, error: 'Room is full' });
           return;
         }
 
