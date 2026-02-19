@@ -12,11 +12,11 @@ import PhaseTransition from './components/PhaseTransition';
 import ConnectionStatus from './components/ConnectionStatus';
 import LoadingOverlay from './components/LoadingOverlay';
 import ErrorMessage from './components/ErrorMessage';
-import { calculateDeckCount, generateDecks, dealCards } from './utils/deckUtils';
 import { generateCardPosition } from './utils/cardPositionUtils';
 import { formatCardPlayError } from './utils/validation';
 import { isBot, botSelectPhase1Card, botSelectPhase2Cards, getBotDelay } from './utils/botAI';
 import { socketManager, ConnectionStatus as ConnectionStatusType } from './services/SocketManager';
+
 
 function App() {
   // Global game state
