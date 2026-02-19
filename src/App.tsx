@@ -186,6 +186,23 @@ function App() {
           console.log('Reconnection successful!', { roomId: storedRoomId, playerId });
           setGameState(serverGameState);
           setCurrentUserId(playerId);
+          
+          // Initialize card positions for any cards on the table
+          if (serverGameState.phase === 'BERIZ' && serverGameState.table.length > 0) {
+            const newPositions = new Map<string, CardPosition>();
+            serverGameState.table.forEach((card: Card) => {
+              const position = generateCardPosition(Array.from(newPositions.values()));
+              newPositions.set(card.id, position);
+            });
+            setCardPositions(newPositions);
+          } else if (serverGameState.phase === 'JHABBU' && serverGameState.trickCards.length > 0) {
+            const newPositions = new Map<string, CardPosition>();
+            serverGameState.trickCards.forEach((tc: any) => {
+              const position = generateCardPosition(Array.from(newPositions.values()));
+              newPositions.set(tc.card.id, position);
+            });
+            setCardPositions(newPositions);
+          }
         } catch (error) {
           console.log('Reconnection failed, clearing stored session:', error);
           // Clear invalid session data
