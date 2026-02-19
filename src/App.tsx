@@ -215,9 +215,15 @@ function App() {
       setGameState(newGameState);
     });
 
-    socketManager.onPlayerRemoved(({ playerId, players }) => {
+    socketManager.onPlayerRemoved(({ playerId, gameState }) => {
       console.log('Player removed:', playerId);
-      setGameState(prev => ({ ...prev, players }));
+      if (gameState) {
+        // Server sent full game state with corrected currentPlayerIndex
+        setGameState(gameState);
+      } else {
+        // Fallback: just update players (for backward compatibility)
+        setGameState(prev => ({ ...prev, players: (gameState as any)?.players || prev.players }));
+      }
     });
 
     // Attempt to reconnect if session exists in localStorage

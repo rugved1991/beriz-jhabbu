@@ -130,10 +130,34 @@ export class RoomManager {
     console.log(`Removing player ${playerId} from room ${roomId}. Current players:`, 
       room.gameState.players.map(p => `${p.name} (${p.id})`));
 
+    // Find the index of the player being removed
+    const removedPlayerIndex = room.gameState.players.findIndex(p => p.id === playerId);
+    
     room.gameState.players = room.gameState.players.filter(p => p.id !== playerId);
     
     console.log(`After removal, players:`, 
       room.gameState.players.map(p => `${p.name} (${p.id})`));
+    
+    // Adjust currentPlayerIndex if needed
+    if (removedPlayerIndex !== -1 && removedPlayerIndex < room.gameState.currentPlayerIndex) {
+      // A player before the current player was removed, shift index down
+      room.gameState.currentPlayerIndex--;
+      console.log(`Adjusted currentPlayerIndex to ${room.gameState.currentPlayerIndex} after removing player at index ${removedPlayerIndex}`);
+    } else if (removedPlayerIndex === room.gameState.currentPlayerIndex) {
+      // The current player was removed, keep the same index (next player takes their spot)
+      // But make sure it's not out of bounds
+      if (room.gameState.currentPlayerIndex >= room.gameState.players.length) {
+        room.gameState.currentPlayerIndex = 0;
+        console.log(`Current player removed, wrapping currentPlayerIndex to 0`);
+      } else {
+        console.log(`Current player removed, currentPlayerIndex stays at ${room.gameState.currentPlayerIndex}`);
+      }
+    }
+    
+    // Update player positions
+    room.gameState.players.forEach((player, index) => {
+      player.position = index;
+    });
     
     // Remove session mapping
     for (const [sessionId, pId] of room.sessions.entries()) {

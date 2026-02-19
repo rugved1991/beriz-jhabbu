@@ -708,10 +708,24 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         if (updatedRoom) {
           console.log(`After player ${data.playerId} left, room ${data.roomId} has ${updatedRoom.gameState.players.length} players:`, 
             updatedRoom.gameState.players.map(p => `${p.name} (${p.id})`));
-          io.to(data.roomId).emit('playerRemoved', { 
-            playerId: data.playerId,
-            players: updatedRoom.gameState.players 
-          });
+          
+          // Broadcast filtered game state to each remaining player
+          for (const player of updatedRoom.gameState.players) {
+            const filteredState = filterGameStateForPlayer(updatedRoom.gameState, player.id);
+            const playerSockets = Array.from(socketToPlayer.entries())
+              .filter(([_, info]) => info.playerId === player.id && info.roomId === data.roomId)
+              .map(([socketId, _]) => socketId);
+            
+            playerSockets.forEach(socketId => {
+              io.to(socketId).emit('playerRemoved', { 
+                playerId: data.playerId,
+                gameState: filteredState
+              });
+            });
+          }
+          
+          // Check if it's now a bot's turn and execute
+          checkAndExecuteBotTurn(io, roomManager, gameStateManager, data.roomId, socketToPlayer);
         } else {
           console.log(`Room ${data.roomId} no longer exists after player ${data.playerId} left`);
         }
@@ -794,13 +808,26 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         // Remove player from room
         roomManager.removePlayerFromRoom(roomId, playerId);
         
-        // Broadcast player removal
+        // Broadcast player removal with full game state
         const updatedRoom = roomManager.getRoom(roomId);
         if (updatedRoom) {
-          io.to(roomId).emit('playerRemoved', { 
-            playerId,
-            players: updatedRoom.gameState.players 
-          });
+          // Broadcast filtered game state to each remaining player
+          for (const player of updatedRoom.gameState.players) {
+            const filteredState = filterGameStateForPlayer(updatedRoom.gameState, player.id);
+            const playerSockets = Array.from(socketToPlayer.entries())
+              .filter(([_, info]) => info.playerId === player.id && info.roomId === roomId)
+              .map(([socketId, _]) => socketId);
+            
+            playerSockets.forEach(socketId => {
+              io.to(socketId).emit('playerRemoved', { 
+                playerId,
+                gameState: filteredState
+              });
+            });
+          }
+          
+          // Check if it's now a bot's turn and execute
+          checkAndExecuteBotTurn(io, roomManager, gameStateManager, roomId, socketToPlayer);
         }
         
         disconnectTimeouts.delete(timeoutKey);
