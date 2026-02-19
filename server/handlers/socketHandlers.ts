@@ -522,12 +522,15 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         callback({ success: true });
         
         // Broadcast filtered state to each player
+        console.log(`Broadcasting game state to ${result.newGameState.players.length} players`);
         for (const player of result.newGameState.players) {
           const filteredState = filterGameStateForPlayer(result.newGameState, player.id);
           // Send to specific player's socket
           const playerSockets = Array.from(socketToPlayer.entries())
             .filter(([_, info]) => info.playerId === player.id && info.roomId === data.roomId)
             .map(([socketId, _]) => socketId);
+          
+          console.log(`Player ${player.name} (${player.id}): ${playerSockets.length} socket(s)`, playerSockets);
           
           playerSockets.forEach(socketId => {
             io.to(socketId).emit('gameStateUpdated', { 
