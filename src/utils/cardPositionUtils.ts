@@ -24,12 +24,12 @@ export function generateCardPosition(
   let slotPositions: Array<{ x: number; y: number }> = [];
   
   if (isMobile) {
-    // Mobile: Arrange in a compact grid (3 columns x 5 rows for better visibility)
-    // Card width ~40px on table, use very tight spacing to fit 8+ cards
-    const cardSpacing = 46;
-    const rowSpacing = 46; // Very tight vertical spacing to fit more cards
-    const cols = 3; // 3 columns for better spacing
-    const rows = Math.ceil(TOTAL_SLOTS / cols);
+    // Mobile: Arrange in a compact grid to fit all 13 cards
+    // Use 4 columns x 4 rows (13 cards total, last row has 1 card)
+    const cardSpacing = 42; // Horizontal spacing between cards
+    const rowSpacing = 42; // Vertical spacing between cards
+    const cols = 4; // 4 columns to fit more cards
+    const rows = Math.ceil(TOTAL_SLOTS / cols); // 4 rows
     
     // Calculate grid dimensions
     const gridWidth = (cols - 1) * cardSpacing;
