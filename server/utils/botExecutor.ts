@@ -126,9 +126,16 @@ function executeBotMove(
       severity: 'info'
     });
 
-    // Broadcast filtered state to each player if we have socket mapping
+    // Broadcast filtered state to each player if we have socket mapping (send once per player)
     if (socketToPlayer) {
+      const broadcastedPlayers = new Set<string>();
+      
       for (const player of result.newGameState.players) {
+        // Skip if we already broadcast to this player
+        if (broadcastedPlayers.has(player.id)) {
+          continue;
+        }
+        
         const filteredState = filterGameStateForPlayer(result.newGameState, player.id);
         
         // Find sockets for this player in this room
@@ -142,6 +149,8 @@ function executeBotMove(
             event: result.event
           });
         });
+        
+        broadcastedPlayers.add(player.id);
       }
     } else {
       // Fallback: broadcast unfiltered (for backward compatibility)

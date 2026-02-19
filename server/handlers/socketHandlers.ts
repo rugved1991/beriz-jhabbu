@@ -521,9 +521,16 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         
         callback({ success: true });
         
-        // Broadcast filtered state to each player
+        // Broadcast filtered state to each player (send once per player, not per socket)
         console.log(`Broadcasting game state to ${result.newGameState.players.length} players`);
+        const broadcastedPlayers = new Set<string>();
+        
         for (const player of result.newGameState.players) {
+          // Skip if we already broadcast to this player
+          if (broadcastedPlayers.has(player.id)) {
+            continue;
+          }
+          
           const filteredState = filterGameStateForPlayer(result.newGameState, player.id);
           // Send to specific player's socket
           const playerSockets = Array.from(socketToPlayer.entries())
@@ -532,12 +539,15 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           
           console.log(`Player ${player.name} (${player.id}): ${playerSockets.length} socket(s)`, playerSockets);
           
+          // Send to all sockets for this player
           playerSockets.forEach(socketId => {
             io.to(socketId).emit('gameStateUpdated', { 
               gameState: filteredState,
               event: result.event
             });
           });
+          
+          broadcastedPlayers.add(player.id);
         }
         
         // Broadcast to spectators with all hands hidden
