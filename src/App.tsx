@@ -127,8 +127,6 @@ function App() {
         });
       }
       
-      setGameState(newGameState);
-      
       // Update card positions based on the event
       if (event === 'cardPlayed') {
         // Check if cards were removed from table (penalty in Phase 1)
@@ -138,13 +136,17 @@ function App() {
           const removedCardIds = Array.from(oldTableCardIds).filter(id => !newTableCardIds.has(id));
           
           if (removedCardIds.length > 0) {
-            // Penalty occurred! Highlight the removed cards
+            // Penalty occurred! Keep old state visible and highlight the removed cards
+            console.log('Penalty detected, highlighting cards:', removedCardIds);
             setHighlightedCards(new Set(removedCardIds));
             
             // Delay the state update to show the highlight
             setTimeout(() => {
+              console.log('Applying delayed state update after highlight');
+              setGameState(newGameState);
               setHighlightedCards(new Set());
-              // Update card positions after highlight
+              
+              // Update card positions after state update
               setCardPositions(currentPositions => {
                 const newPositions = new Map(currentPositions);
                 // Remove positions for collected cards
@@ -153,10 +155,13 @@ function App() {
               });
             }, 1200); // 1.2 second delay to show highlight
             
-            // Don't update positions immediately, wait for timeout
+            // Don't update state immediately, wait for timeout
             return;
           }
         }
+        
+        // No penalty - update state immediately
+        setGameState(newGameState);
         
         // Add position for newly played card(s)
         const newCards = newGameState.phase === 'JHABBU' 
@@ -174,6 +179,8 @@ function App() {
           return newPositions;
         });
       } else if (event === 'trickComplete' || event === 'phaseTransition') {
+        // Update state immediately
+        setGameState(newGameState);
         // Clear card positions when trick completes or phase changes
         setCardPositions(new Map());
         if (event === 'phaseTransition') {
