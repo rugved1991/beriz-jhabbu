@@ -17,6 +17,9 @@
 *.d.ts
 *.d.ts.map
 *.js.map
+# Exclude compiled JS files from src (only keep source .ts/.tsx)
+src/**/*.js
+src/**/*.d.ts
 # Keep TypeScript source files
 !src/**/*.ts
 !src/**/*.tsx
