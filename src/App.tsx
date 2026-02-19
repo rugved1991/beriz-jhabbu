@@ -156,7 +156,9 @@ function App() {
           console.log('Setting Jhabbu announcement:', {
             jhabbuGiver: jhabbuGiver?.name,
             jhabbuReceiver: jhabbuReceiver?.name,
-            cardCount
+            cardCount,
+            currentUserId,
+            isJhabbuGiver: jhabbuGiverId === currentUserId
           });
           
           if (jhabbuGiver && jhabbuReceiver) {
@@ -165,6 +167,32 @@ function App() {
               jhabbuReceiver: jhabbuReceiver.name,
               cardCount
             });
+            
+            // If current user is the Jhabbu giver, set up auto-play for the lowest card
+            if (jhabbuGiverId === currentUserId && jhabbuGiver.hand.length > 0) {
+              // Find the lowest card in the Jhabbu giver's hand (should be the kept card)
+              const getRankValue = (rank: string): number => {
+                if (rank === 'A') return 14;
+                if (rank === 'K') return 13;
+                if (rank === 'Q') return 12;
+                if (rank === 'J') return 11;
+                return parseInt(rank, 10);
+              };
+              
+              const lowestCard = jhabbuGiver.hand.reduce((lowest: any, current: any) => 
+                getRankValue(current.rank) < getRankValue(lowest.rank) ? current : lowest
+              );
+              
+              console.log('Setting Jhabbu auto-play:', {
+                lowestCard: `${lowestCard.rank}${lowestCard.suit}`,
+                cardId: lowestCard.id
+              });
+              
+              setJhabbuAutoPlay({
+                playerId: jhabbuGiverId,
+                cardId: lowestCard.id
+              });
+            }
           }
         }
         // Clear card positions for new trick
