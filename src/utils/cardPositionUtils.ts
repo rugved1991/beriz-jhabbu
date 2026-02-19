@@ -25,9 +25,9 @@ export function generateCardPosition(
   
   if (isMobile) {
     // Mobile: Arrange in a compact grid (3 columns x 5 rows for better visibility)
-    // Card width ~40px on table, use tighter spacing to fit in 280px height
+    // Card width ~40px on table, use very tight spacing to fit 8+ cards
     const cardSpacing = 46;
-    const rowSpacing = 50; // Tighter vertical spacing to fit in smaller table
+    const rowSpacing = 46; // Very tight vertical spacing to fit more cards
     const cols = 3; // 3 columns for better spacing
     const rows = Math.ceil(TOTAL_SLOTS / cols);
     
