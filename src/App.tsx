@@ -161,12 +161,15 @@ function App() {
           const jhabbuGiver = newGameState.players.find((p: any) => p.id === jhabbuGiverId);
           const jhabbuReceiver = newGameState.players.find((p: any) => p.id === jhabbuReceiverId);
           
+          // Use ref to get the most current userId
+          const actualCurrentUserId = currentUserIdRef.current;
+          
           console.log('Setting Jhabbu announcement:', {
             jhabbuGiver: jhabbuGiver?.name,
             jhabbuReceiver: jhabbuReceiver?.name,
             cardCount,
-            currentUserId,
-            isJhabbuGiver: jhabbuGiverId === currentUserId
+            actualCurrentUserId,
+            isJhabbuGiver: jhabbuGiverId === actualCurrentUserId
           });
           
           if (jhabbuGiver && jhabbuReceiver) {
@@ -177,7 +180,6 @@ function App() {
             });
             
             // If current user is the Jhabbu giver, set up auto-play for the lowest card
-            const actualCurrentUserId = currentUserIdRef.current || currentUserId;
             console.log('Checking if should set auto-play:', {
               jhabbuGiverId,
               actualCurrentUserId,
@@ -851,6 +853,25 @@ function App() {
     );
   }
 
+  // Check if local player is eliminated but game is still ongoing (spectator mode)
+  const localPlayer = gameState.players.find(p => p.id === currentUserId);
+  const isLocalPlayerEliminated = localPlayer && !localPlayer.isActive;
+  const activePlayers = gameState.players.filter(p => p.isActive);
+  const gameStillOngoing = activePlayers.length > 1;
+  
+  // If local player is eliminated but game is ongoing, show spectator view
+  if (isLocalPlayerEliminated && gameStillOngoing && (gameState.phase === 'BERIZ' || gameState.phase === 'JHABBU')) {
+    console.log('Local player eliminated - showing spectator view:', {
+      localPlayerId: currentUserId,
+      localPlayerName: localPlayer?.name,
+      activePlayers: activePlayers.length,
+      phase: gameState.phase
+    });
+    
+    // Continue to render game board below (spectator mode)
+    // Don't return early - let the game board render
+  }
+
   if (gameState.phase === 'GAME_OVER') {
     const loser = gameState.players.find(p => p.id === gameState.loser);
     const winners = gameState.players.filter(p => p.id !== gameState.loser);
@@ -878,8 +899,9 @@ function App() {
 
   // BERIZ or JHABBU phase - render game board
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  const localPlayer = gameState.players.find(p => p.id === currentUserId) || gameState.players[0];
-  const effectiveUserId = localPlayer?.id || currentUserId;
+  const localPlayerData = gameState.players.find(p => p.id === currentUserId) || gameState.players[0];
+  const effectiveUserId = localPlayerData?.id || currentUserId;
+  const isSpectator = localPlayerData && !localPlayerData.isActive;
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-800 to-gray-900 overflow-auto">
@@ -893,6 +915,18 @@ function App() {
                 <span className="font-mono font-bold">{gameState.roomId}</span>
               </p>
             </div>
+            {isSpectator && (
+              <div className="flex-shrink-0 text-center">
+                <p className="text-xs text-gray-600">Status</p>
+                <p 
+                  className="text-sm sm:text-base font-bold text-purple-700"
+                  role="status"
+                  aria-live="polite"
+                >
+                  👁️ Spectating
+                </p>
+              </div>
+            )}
             <div className="flex-shrink-0 text-center">
               <p className="text-xs text-gray-600">Phase</p>
               <p 
@@ -949,6 +983,19 @@ function App() {
 
           {/* Status messages - compact */}
           <div className="flex-shrink-0">
+            {/* Spectator mode indicator */}
+            {isSpectator && (
+              <div 
+                className="mb-1 bg-purple-50 border border-purple-300 rounded p-1.5 text-center"
+                role="status"
+                aria-live="polite"
+              >
+                <p className="text-xs text-purple-800 font-semibold">
+                  👁️ You've been eliminated - watching as spectator
+                </p>
+              </div>
+            )}
+            
             {/* Bot thinking indicator */}
             {isBotThinking && (
               <div 
@@ -963,8 +1010,8 @@ function App() {
             )}
 
             {/* Jhabbu auto-play indicator */}
-            {jhabbuAutoPlay && localPlayer && (() => {
-              const cardToPlay = localPlayer.hand.find(c => c.id === jhabbuAutoPlay.cardId);
+            {jhabbuAutoPlay && localPlayerData && (() => {
+              const cardToPlay = localPlayerData.hand.find(c => c.id === jhabbuAutoPlay.cardId);
               if (!cardToPlay) return null;
               
               return (
@@ -995,11 +1042,11 @@ function App() {
           </div>
 
           {/* Player hand */}
-          {localPlayer && (
+          {localPlayerData && (
             <div className="flex-shrink-0 mb-4">
               <PlayerHand
-                player={localPlayer}
-                isCurrentPlayer={currentPlayer?.id === effectiveUserId && !isBotThinking && !jhabbuAutoPlay}
+                player={localPlayerData}
+                isCurrentPlayer={!isSpectator && currentPlayer?.id === effectiveUserId && !isBotThinking && !jhabbuAutoPlay}
                 onPlayCard={handlePlayCard}
                 phase={gameState.phase}
                 gameState={gameState}

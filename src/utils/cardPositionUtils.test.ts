@@ -15,10 +15,10 @@ describe('cardPositionUtils', () => {
       const position = generateCardPosition(existingPositions, centerX, centerY);
       
       // Should be in one of the 13 slots
-      // With 70px spacing and 13 slots: total width = 12 * 70 = 840px
-      // Slots range from -420 to +420
-      expect(position.x).toBeGreaterThanOrEqual(-420);
-      expect(position.x).toBeLessThanOrEqual(420);
+      // With 75px spacing and 13 slots: total width = 12 * 75 = 900px
+      // Slots range from -450 to +450
+      expect(position.x).toBeGreaterThanOrEqual(-450);
+      expect(position.x).toBeLessThanOrEqual(450);
       expect(position.y).toBe(0);
     });
 
@@ -56,9 +56,9 @@ describe('cardPositionUtils', () => {
       
       const position = generateCardPosition(existingPositions);
       
-      // Should be within the 13 slots range (-420 to +420)
-      expect(position.x).toBeGreaterThanOrEqual(-420);
-      expect(position.x).toBeLessThanOrEqual(420);
+      // Should be within the 13 slots range (-450 to +450)
+      expect(position.x).toBeGreaterThanOrEqual(-450);
+      expect(position.x).toBeLessThanOrEqual(450);
       expect(position.y).toBe(0);
     });
 
@@ -79,11 +79,11 @@ describe('cardPositionUtils', () => {
       // All cards should be at same vertical level
       positions.forEach(p => expect(p.y).toBe(0));
       
-      // All positions should be valid slot positions (multiples of 70 from center)
-      // With 70px spacing: slots are at -420, -350, -280, -210, -140, -70, 0, 70, 140, 210, 280, 350, 420
+      // All positions should be valid slot positions (multiples of 75 from center)
+      // With 75px spacing: slots are at -450, -375, -300, -225, -150, -75, 0, 75, 150, 225, 300, 375, 450
       positions.forEach(p => {
         const offsetFromCenter = Math.abs(p.x);
-        expect(offsetFromCenter % 70).toBe(0);
+        expect(offsetFromCenter % 75).toBe(0);
       });
     });
 
@@ -94,9 +94,9 @@ describe('cardPositionUtils', () => {
       
       const position = generateCardPosition(existingPositions, centerX, centerY);
       
-      // Should be offset from custom center (within -420 to +420 range)
-      expect(position.x).toBeGreaterThanOrEqual(centerX - 420);
-      expect(position.x).toBeLessThanOrEqual(centerX + 420);
+      // Should be offset from custom center (within -450 to +450 range)
+      expect(position.x).toBeGreaterThanOrEqual(centerX - 450);
+      expect(position.x).toBeLessThanOrEqual(centerX + 450);
       expect(position.y).toBe(centerY);
     });
 

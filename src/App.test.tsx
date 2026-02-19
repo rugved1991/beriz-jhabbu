@@ -12,11 +12,14 @@ jest.mock('./services/SocketManager', () => ({
     startGame: jest.fn(),
     playCard: jest.fn(),
     addBot: jest.fn(),
+    leaveRoom: jest.fn(),
+    getRoomInfo: jest.fn(),
     onPlayerJoined: jest.fn(),
     onGameStarted: jest.fn(),
     onGameStateUpdated: jest.fn(),
     onPlayerReconnected: jest.fn(),
     onPlayerDisconnected: jest.fn(),
+    onPlayerRemoved: jest.fn(),
     onConnect: jest.fn(),
     onDisconnect: jest.fn(),
     onConnectionStatusChange: jest.fn(),
@@ -33,6 +36,7 @@ test('renders game setup screen', () => {
   const titleElement = screen.getByText(/Beriz Jhabbu/i);
   expect(titleElement).toBeInTheDocument();
   
-  const createRoomButton = screen.getByText(/Create Room/i);
-  expect(createRoomButton).toBeInTheDocument();
+  // Use getAllByText since there might be multiple "Create Room" buttons
+  const createRoomButtons = screen.getAllByText(/Create Room/i);
+  expect(createRoomButtons.length).toBeGreaterThan(0);
 });
