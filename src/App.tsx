@@ -129,42 +129,65 @@ function App() {
       
       // Update card positions based on the event
       if (event === 'cardPlayed') {
-        // Check if cards were removed from table (penalty in Phase 1)
+        // Check if any player's side deck increased (penalty in Phase 1)
         if (newGameState.phase === 'BERIZ') {
-          const oldTableCardIds = new Set(gameState.table.map((c: Card) => c.id));
-          const newTableCardIds = new Set(newGameState.table.map((c: Card) => c.id));
-          const removedCardIds = Array.from(oldTableCardIds).filter(id => !newTableCardIds.has(id));
+          // Find which player's side deck increased
+          let penaltyPlayerId: string | null = null;
+          let sideDeckIncrease = 0;
           
-          console.log('Card played in BERIZ phase:', {
-            oldTableCount: oldTableCardIds.size,
-            newTableCount: newTableCardIds.size,
-            removedCount: removedCardIds.length,
-            removedCards: removedCardIds
+          for (const newPlayer of newGameState.players) {
+            const oldPlayer = gameState.players.find(p => p.id === newPlayer.id);
+            if (oldPlayer && newPlayer.sideDeck.length > oldPlayer.sideDeck.length) {
+              penaltyPlayerId = newPlayer.id;
+              sideDeckIncrease = newPlayer.sideDeck.length - oldPlayer.sideDeck.length;
+              break;
+            }
+          }
+          
+          console.log('Penalty check:', {
+            penaltyDetected: penaltyPlayerId !== null,
+            penaltyPlayerId,
+            sideDeckIncrease,
+            oldTableCount: gameState.table.length,
+            newTableCount: newGameState.table.length
           });
           
-          if (removedCardIds.length > 0) {
-            // Penalty occurred! Keep old state visible and highlight the removed cards
-            console.log('🔴 PENALTY DETECTED! Highlighting cards:', removedCardIds);
-            setHighlightedCards(new Set(removedCardIds));
+          if (penaltyPlayerId && sideDeckIncrease > 0) {
+            // Penalty occurred! Find which cards were collected
+            // The penalty cards are the ones that were on the old table but not on the new table
+            const oldTableCardIds = new Set(gameState.table.map((c: Card) => c.id));
+            const newTableCardIds = new Set(newGameState.table.map((c: Card) => c.id));
+            const collectedCardIds = Array.from(oldTableCardIds).filter(id => !newTableCardIds.has(id));
             
-            // Delay the state update to show the highlight
-            setTimeout(() => {
-              console.log('⏰ Applying delayed state update after highlight');
-              setGameState(newGameState);
-              setHighlightedCards(new Set());
+            console.log('🔴 PENALTY DETECTED!', {
+              player: newGameState.players.find(p => p.id === penaltyPlayerId)?.name,
+              cardsCollected: collectedCardIds.length,
+              sideDeckIncrease
+            });
+            
+            if (collectedCardIds.length > 0) {
+              // Highlight the collected cards
+              setHighlightedCards(new Set(collectedCardIds));
               
-              // Update card positions after state update
-              setCardPositions(currentPositions => {
-                const newPositions = new Map(currentPositions);
-                // Remove positions for collected cards
-                removedCardIds.forEach(id => newPositions.delete(id));
-                return newPositions;
-              });
-            }, 1200); // 1.2 second delay to show highlight
-            
-            // Don't update state immediately, wait for timeout
-            console.log('⏸️ State update delayed for highlight animation');
-            return;
+              // Delay the state update to show the highlight
+              setTimeout(() => {
+                console.log('⏰ Applying delayed state update after highlight');
+                setGameState(newGameState);
+                setHighlightedCards(new Set());
+                
+                // Update card positions after state update
+                setCardPositions(currentPositions => {
+                  const newPositions = new Map(currentPositions);
+                  // Remove positions for collected cards
+                  collectedCardIds.forEach(id => newPositions.delete(id));
+                  return newPositions;
+                });
+              }, 1200); // 1.2 second delay to show highlight
+              
+              // Don't update state immediately, wait for timeout
+              console.log('⏸️ State update delayed for highlight animation');
+              return;
+            }
           }
         }
         
