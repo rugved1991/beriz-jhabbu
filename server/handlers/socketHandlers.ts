@@ -6,13 +6,14 @@ import { checkAndExecuteBotTurn } from '../utils/botExecutor';
 import { securityLogger } from '../utils/securityLogger';
 import { globalRateLimiter } from '../utils/rateLimiter';
 import { filterGameStateForPlayer, filterGameStateForSpectator } from '../utils/stateFilter';
+import crypto from 'crypto';
 
 /**
- * Generates a unique session ID for player reconnection
+ * Generates a cryptographically secure unique session ID for player reconnection
  * @returns A unique session ID string
  */
 function generateSessionId(): string {
-  return `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  return `session-${crypto.randomBytes(16).toString('hex')}`;
 }
 
 /**
@@ -158,6 +159,16 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           return;
         }
 
+        // Sanitize player name to prevent XSS
+        const sanitizedPlayerName = data.playerName
+          ? data.playerName
+              .trim()
+              .replace(/[<>'"]/g, '')
+              .replace(/javascript:/gi, '')
+              .replace(/on\w+=/gi, '')
+              .substring(0, 20)
+          : '';
+
         // Check if reconnecting with existing session
         if (data.sessionId && room.sessions.has(data.sessionId)) {
           const playerId = room.sessions.get(data.sessionId)!;
@@ -239,7 +250,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           const sessionId = data.sessionId || generateSessionId();
           const spectatorId = `spectator-${Date.now()}-${Math.random()}`;
           
-          const added = roomManager.addSpectatorToRoom(data.roomId, spectatorId, data.playerName, sessionId);
+          const added = roomManager.addSpectatorToRoom(data.roomId, spectatorId, sanitizedPlayerName, sessionId);
           
           if (!added) {
             callback({ success: false, error: 'Failed to join as spectator' });
@@ -247,14 +258,14 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           }
 
           socket.join(data.roomId);
-          console.log(`Spectator joined: ${spectatorId} (${data.playerName}) to room ${data.roomId}`);
+          console.log(`Spectator joined: ${spectatorId} (${sanitizedPlayerName}) to room ${data.roomId}`);
           
           securityLogger.log({
             event: 'Spectator joined',
             roomId: data.roomId,
             playerId: spectatorId,
             socketId: socket.id,
-            details: `Name: ${data.playerName}`,
+            details: `Name: ${sanitizedPlayerName}`,
             severity: 'info'
           });
           
@@ -284,7 +295,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         const sessionId = data.sessionId || generateSessionId();
         const playerId = `player-${Date.now()}-${Math.random()}`;
         
-        const added = roomManager.addPlayerToRoom(data.roomId, playerId, data.playerName, sessionId);
+        const added = roomManager.addPlayerToRoom(data.roomId, playerId, sanitizedPlayerName, sessionId);
         
         if (!added) {
           securityLogger.log({
@@ -298,7 +309,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         }
 
         socket.join(data.roomId);
-        console.log(`Player joined: ${playerId} (${data.playerName}) to room ${data.roomId}`);
+        console.log(`Player joined: ${playerId} (${sanitizedPlayerName}) to room ${data.roomId}`);
         
         // Track socket to player mapping
         socketToPlayer.set(socket.id, { roomId: data.roomId, playerId });
@@ -308,7 +319,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           roomId: data.roomId,
           playerId,
           socketId: socket.id,
-          details: `Name: ${data.playerName}`,
+          details: `Name: ${sanitizedPlayerName}`,
           severity: 'info'
         });
         

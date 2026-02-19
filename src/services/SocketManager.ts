@@ -15,6 +15,7 @@ class SocketManager {
 
   constructor(serverUrl: string = process.env.REACT_APP_SERVER_URL || 'http://localhost:3001') {
     this.serverUrl = serverUrl;
+    console.log('SocketManager initialized with URL:', this.serverUrl);
   }
 
   connect(): void {

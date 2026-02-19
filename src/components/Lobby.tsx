@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Player } from '../types';
-import { validatePlayerName } from '../utils/validation';
+import { validatePlayerName, sanitizePlayerName } from '../utils/validation';
 
 interface LobbyProps {
   roomId: string;
@@ -73,8 +73,11 @@ export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJo
   const isAlreadyInRoom = !!currentPlayerInRoom || hasJoined;
 
   const handleJoinRoom = async () => {
+    // Sanitize player name first
+    const sanitizedName = sanitizePlayerName(playerName);
+    
     // Validate player name
-    const validation = validatePlayerName(playerName);
+    const validation = validatePlayerName(sanitizedName);
     if (!validation.valid) {
       setError(validation.error || 'Invalid player name');
       return;
@@ -84,7 +87,7 @@ export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJo
     setIsJoining(true);
     
     try {
-      await onJoinRoom(playerName.trim(), roomId);
+      await onJoinRoom(sanitizedName, roomId);
       setHasJoined(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join room');

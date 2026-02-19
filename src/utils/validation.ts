@@ -64,6 +64,19 @@ export function validatePlayerName(name: string): { valid: boolean; error?: stri
 }
 
 /**
+ * Sanitizes player name to prevent XSS attacks
+ * Removes HTML special characters and JavaScript protocols
+ */
+export function sanitizePlayerName(name: string): string {
+  return name
+    .trim()
+    .replace(/[<>'"]/g, '') // Remove HTML special characters
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+=/gi, '') // Remove event handlers like onclick=
+    .substring(0, 20); // Enforce max length
+}
+
+/**
  * Formats card play error messages for user display
  * Requirements: 9.2
  */

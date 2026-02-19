@@ -46,6 +46,24 @@ log.info('Server starting', {
 // Configure CORS
 app.use(cors({ origin: CLIENT_URL }));
 
+// Enforce HTTPS in production
+if (NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    // Check if request is already HTTPS
+    const proto = req.header('x-forwarded-proto');
+    if (proto && proto !== 'https') {
+      log.warn('HTTP request redirected to HTTPS', {
+        path: req.path,
+        ip: req.ip
+      });
+      return res.redirect(301, `https://${req.header('host')}${req.url}`);
+    }
+    next();
+  });
+  
+  log.info('HTTPS enforcement enabled');
+}
+
 // Request logging middleware for production
 if (NODE_ENV === 'production') {
   app.use((req, res, next) => {
