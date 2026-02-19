@@ -12,6 +12,7 @@ interface CardProps {
   animationType?: AnimationType;
   onAnimationComplete?: () => void;
   isOnTable?: boolean; // Whether card is on the table (vs in hand)
+  isHighlighted?: boolean; // Whether card should be highlighted (penalty collection)
 }
 
 const Card: React.FC<CardProps> = ({ 
@@ -21,7 +22,8 @@ const Card: React.FC<CardProps> = ({
   isPlayable = false,
   animationType = 'none',
   onAnimationComplete,
-  isOnTable = false
+  isOnTable = false,
+  isHighlighted = false
 }) => {
   // Map suits to symbols and colors
   const suitSymbols: Record<string, string> = {
@@ -116,6 +118,7 @@ const Card: React.FC<CardProps> = ({
         shadow-lg
         ${isPlayable ? 'cursor-pointer hover:scale-105 hover:shadow-xl transition-transform' : ''}
         ${onClick ? 'cursor-pointer' : ''}
+        ${isHighlighted ? 'ring-4 ring-red-500 ring-opacity-75 animate-pulse shadow-2xl' : ''}
       `}
       style={{
         ...transformStyle,
@@ -126,7 +129,8 @@ const Card: React.FC<CardProps> = ({
           : '3rem',                                // 48px desktop
         height: window.innerWidth < 640 
           ? (isOnTable ? '2.25rem' : '4.125rem') // 36px table, 66px hand
-          : '4.5rem'                               // 72px desktop
+          : '4.5rem',                              // 72px desktop
+        backgroundColor: isHighlighted ? '#fee2e2' : 'white' // Light red background when highlighted
       }}
       onClick={isPlayable && onClick ? onClick : undefined}
       initial={variants.initial}
@@ -168,6 +172,7 @@ export default memo(Card, (prevProps, nextProps) => {
     prevProps.card.id === nextProps.card.id &&
     prevProps.isPlayable === nextProps.isPlayable &&
     prevProps.animationType === nextProps.animationType &&
+    prevProps.isHighlighted === nextProps.isHighlighted &&
     prevProps.position?.x === nextProps.position?.x &&
     prevProps.position?.y === nextProps.position?.y &&
     prevProps.position?.rotation === nextProps.position?.rotation &&

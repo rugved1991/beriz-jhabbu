@@ -86,6 +86,9 @@ function App() {
   // Phase transition state (for Phase 1 to Phase 2 transition)
   const [showPhaseTransition, setShowPhaseTransition] = useState<boolean>(false);
 
+  // Highlighted cards state (for penalty collection visualization)
+  const [highlightedCards, setHighlightedCards] = useState<Set<string>>(new Set());
+
   // Track last processed event to prevent duplicates
   const lastProcessedEvent = React.useRef<{event: string, timestamp: number} | null>(null);
 
@@ -128,6 +131,33 @@ function App() {
       
       // Update card positions based on the event
       if (event === 'cardPlayed') {
+        // Check if cards were removed from table (penalty in Phase 1)
+        if (newGameState.phase === 'BERIZ') {
+          const oldTableCardIds = new Set(gameState.table.map(c => c.id));
+          const newTableCardIds = new Set(newGameState.table.map(c => c.id));
+          const removedCardIds = Array.from(oldTableCardIds).filter(id => !newTableCardIds.has(id));
+          
+          if (removedCardIds.length > 0) {
+            // Penalty occurred! Highlight the removed cards
+            setHighlightedCards(new Set(removedCardIds));
+            
+            // Delay the state update to show the highlight
+            setTimeout(() => {
+              setHighlightedCards(new Set());
+              // Update card positions after highlight
+              setCardPositions(currentPositions => {
+                const newPositions = new Map(currentPositions);
+                // Remove positions for collected cards
+                removedCardIds.forEach(id => newPositions.delete(id));
+                return newPositions;
+              });
+            }, 1200); // 1.2 second delay to show highlight
+            
+            // Don't update positions immediately, wait for timeout
+            return;
+          }
+        }
+        
         // Add position for newly played card(s)
         const newCards = newGameState.phase === 'JHABBU' 
           ? newGameState.trickCards.map((tc: any) => tc.card)
@@ -858,6 +888,7 @@ function App() {
               currentPlayerId={currentPlayer?.id}
               localPlayerId={effectiveUserId}
               dealerId={gameState.dealerId}
+              highlightedCards={highlightedCards}
             />
           </div>
 

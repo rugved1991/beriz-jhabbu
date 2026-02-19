@@ -14,6 +14,7 @@ interface TableProps {
   dealerId?: string;
   cardAnimations?: Map<string, AnimationType>;
   onAnimationComplete?: (cardId: string) => void;
+  highlightedCards?: Set<string>;
 }
 
 const Table: React.FC<TableProps> = ({ 
@@ -25,12 +26,20 @@ const Table: React.FC<TableProps> = ({
   localPlayerId,
   dealerId,
   cardAnimations,
-  onAnimationComplete
+  onAnimationComplete,
+  highlightedCards = new Set()
 }) => {
-  // Adjust padding based on number of players
+  // Adjust padding based on number of players and screen size
   const playerCount = players?.length || 0;
-  const verticalPadding = playerCount <= 4 ? '50px' : playerCount <= 8 ? '60px' : '70px';
-  const horizontalPadding = playerCount <= 4 ? '50px' : playerCount <= 8 ? '60px' : '70px';
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  
+  // Reduce padding on mobile to give more space for cards
+  const verticalPadding = isMobile 
+    ? '30px' 
+    : (playerCount <= 4 ? '50px' : playerCount <= 8 ? '60px' : '70px');
+  const horizontalPadding = isMobile 
+    ? '10px' 
+    : (playerCount <= 4 ? '50px' : playerCount <= 8 ? '60px' : '70px');
   
   return (
     <div 
@@ -109,6 +118,7 @@ const Table: React.FC<TableProps> = ({
                     animationType={animationType}
                     onAnimationComplete={() => onAnimationComplete?.(card.id)}
                     isOnTable={true}
+                    isHighlighted={highlightedCards.has(card.id)}
                   />
                 </div>
               );
