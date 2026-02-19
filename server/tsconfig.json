@@ -32,6 +32,7 @@
     "../src/services/**/*",
     "../src/**/*.test.ts",
     "../src/**/*.test.tsx",
-    "../src/utils/animationUtils.ts"
+    "../src/utils/animationUtils.ts",
+    "../src/utils/cardPositionUtils.ts"
   ]
 }
