@@ -133,8 +133,8 @@ function App() {
       if (event === 'cardPlayed') {
         // Check if cards were removed from table (penalty in Phase 1)
         if (newGameState.phase === 'BERIZ') {
-          const oldTableCardIds = new Set(gameState.table.map(c => c.id));
-          const newTableCardIds = new Set(newGameState.table.map(c => c.id));
+          const oldTableCardIds = new Set(gameState.table.map((c: Card) => c.id));
+          const newTableCardIds = new Set(newGameState.table.map((c: Card) => c.id));
           const removedCardIds = Array.from(oldTableCardIds).filter(id => !newTableCardIds.has(id));
           
           if (removedCardIds.length > 0) {
