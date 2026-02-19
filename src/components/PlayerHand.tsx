@@ -164,7 +164,7 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
 
   return (
     <div 
-      className="flex flex-col items-center space-y-4 p-4 bg-gray-800 rounded-lg shadow-lg"
+      className="flex flex-col items-center space-y-2 sm:space-y-4 p-2 sm:p-4 bg-gray-800 rounded-lg shadow-lg"
       role="region"
       aria-label={`${player.name}'s hand`}
     >
