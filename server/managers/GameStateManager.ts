@@ -2,6 +2,7 @@
  * Game State Manager
  * Manages game state transitions and validates player moves
  * Reuses existing game logic from src/utils
+ * Updated: 2024-12-20 - Fixed Jhabbu validation logic
  */
 
 import { GameState, Card, Player } from '../../src/types';
@@ -178,7 +179,8 @@ export class GameStateManager {
       ...gameState,
       players: result.updatedPlayers,
       trickCards: result.updatedTrickCards,
-      leadSuit: result.leadSuit
+      leadSuit: result.leadSuit,
+      jhabbuAnnouncement: null // Clear any previous announcement
     };
 
     let event = 'cardPlayed';
@@ -187,7 +189,18 @@ export class GameStateManager {
       const nextLeaderIndex = newState.players.findIndex(p => p.id === result.nextLeaderId);
       newState.currentPlayerIndex = nextLeaderIndex;
       newState.leadSuit = null;
-      event = result.wasJhabbu ? 'jhabbuAnnouncement' : 'trickComplete';
+      
+      if (result.wasJhabbu && result.jhabbuGiverId && result.trickWinnerId && result.jhabbuCardCount) {
+        // Set Jhabbu announcement data
+        newState.jhabbuAnnouncement = {
+          jhabbuGiverId: result.jhabbuGiverId,
+          jhabbuReceiverId: result.trickWinnerId,
+          cardCount: result.jhabbuCardCount
+        };
+        event = 'jhabbuAnnouncement';
+      } else {
+        event = 'trickComplete';
+      }
     } else {
       let nextPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
       while (!gameState.players[nextPlayerIndex].isActive) {
