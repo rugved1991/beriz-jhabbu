@@ -39,6 +39,14 @@ function App() {
 
   // Current player ID (simulating local player for single-device multiplayer)
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  
+  // Ref to access currentUserId in socket event handlers
+  const currentUserIdRef = React.useRef<string>('');
+  
+  // Update ref when currentUserId changes
+  React.useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
 
   // Error message for card play validation
   const [cardPlayError, setCardPlayError] = useState<string>('');
@@ -169,7 +177,14 @@ function App() {
             });
             
             // If current user is the Jhabbu giver, set up auto-play for the lowest card
-            if (jhabbuGiverId === currentUserId && jhabbuGiver.hand.length > 0) {
+            const actualCurrentUserId = currentUserIdRef.current || currentUserId;
+            console.log('Checking if should set auto-play:', {
+              jhabbuGiverId,
+              actualCurrentUserId,
+              isMatch: jhabbuGiverId === actualCurrentUserId
+            });
+            
+            if (jhabbuGiverId === actualCurrentUserId && jhabbuGiver.hand.length > 0) {
               // Find the lowest card in the Jhabbu giver's hand (should be the kept card)
               const getRankValue = (rank: string): number => {
                 if (rank === 'A') return 14;
