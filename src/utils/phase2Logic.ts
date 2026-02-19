@@ -127,24 +127,63 @@ export function handlePhase2CardPlay(
 
   // Validate the play
   if (cards.length === 1) {
-    // Single card play - validate suit following
-    if (!validateSuitFollowing(cards[0], player.hand, leadSuit)) {
-      console.log('Phase 2 Card Play Failed:', {
+    // Single card play - could be normal play OR single-card Jhabbu
+    // First check if it's a valid single-card Jhabbu scenario
+    const isVoid = !player.hand.some(c => c.suit === leadSuit);
+    
+    if (isVoid && cards[0].suit !== leadSuit) {
+      // Player is void and playing a card not of lead suit
+      // Check if this is a valid single-card Jhabbu (only one card of this suit)
+      const cardsOfPlayedSuit = player.hand.filter(c => c.suit === cards[0].suit);
+      
+      if (cardsOfPlayedSuit.length > 1) {
+        // Player has multiple cards of this suit but is trying to play just one
+        // This is invalid - must play all cards of that suit (minus lowest) for Jhabbu
+        console.log('Phase 2 Card Play Failed:', {
+          playerId,
+          playerName: player.name,
+          playedCard: `${cards[0].rank}${cards[0].suit}`,
+          leadSuit,
+          cardsOfSameSuit: cardsOfPlayedSuit.map(c => `${c.rank}${c.suit}`),
+          error: 'Must give Jhabbu with all cards of this suit (not just one)'
+        });
+        return {
+          success: false,
+          error: 'Must give Jhabbu with all cards of this suit',
+          updatedPlayers: players,
+          updatedTrickCards: trickCards,
+          leadSuit: currentLeadSuit,
+          trickComplete: false
+        };
+      }
+      // Valid single-card Jhabbu - player has only one card of this suit
+      console.log('Single-card Jhabbu detected:', {
         playerId,
         playerName: player.name,
         playedCard: `${cards[0].rank}${cards[0].suit}`,
         leadSuit,
-        hand: player.hand.map(c => `${c.rank}${c.suit}`),
-        error: 'Must follow suit'
+        hand: player.hand.map(c => `${c.rank}${c.suit}`)
       });
-      return {
-        success: false,
-        error: 'Must follow suit',
-        updatedPlayers: players,
-        updatedTrickCards: trickCards,
-        leadSuit: currentLeadSuit,
-        trickComplete: false
-      };
+    } else {
+      // Normal single card play - validate suit following
+      if (!validateSuitFollowing(cards[0], player.hand, leadSuit)) {
+        console.log('Phase 2 Card Play Failed:', {
+          playerId,
+          playerName: player.name,
+          playedCard: `${cards[0].rank}${cards[0].suit}`,
+          leadSuit,
+          hand: player.hand.map(c => `${c.rank}${c.suit}`),
+          error: 'Must follow suit'
+        });
+        return {
+          success: false,
+          error: 'Must follow suit',
+          updatedPlayers: players,
+          updatedTrickCards: trickCards,
+          leadSuit: currentLeadSuit,
+          trickComplete: false
+        };
+      }
     }
   } else {
     // Multiple cards - must be a Jhabbu
@@ -168,7 +207,51 @@ export function handlePhase2CardPlay(
     }
   }
 
-  // Remove cards from player's hand
+  // Determine if this is a Jhabbu play (single-card or multi-card)
+  const isJhabbuPlay = cards.length > 1 || (cards.length === 1 && cards[0].suit !== leadSuit);
+  
+  // For multi-card Jhabbu, keep the lowest card
+  // For single-card Jhabbu, play the card (it's the only one of that suit)
+  let cardsToActuallyPlay: Card[];
+  let lowestKeptCard: Card | null = null;
+  
+  if (isJhabbuPlay && cards.length > 1) {
+    // Multi-card Jhabbu - find and keep the lowest card
+    const getRankValue = (rank: string): number => {
+      if (rank === 'A') return 14;
+      if (rank === 'K') return 13;
+      if (rank === 'Q') return 12;
+      if (rank === 'J') return 11;
+      return parseInt(rank, 10);
+    };
+    
+    lowestKeptCard = cards.reduce((lowest, current) => 
+      getRankValue(current.rank) < getRankValue(lowest.rank) ? current : lowest
+    );
+    
+    cardsToActuallyPlay = cards.filter(c => c.id !== lowestKeptCard!.id);
+    
+    console.log('Multi-card Jhabbu: Keeping lowest card', {
+      allCards: cards.map(c => `${c.rank}${c.suit}`),
+      keptCard: `${lowestKeptCard.rank}${lowestKeptCard.suit}`,
+      playedCards: cardsToActuallyPlay.map(c => `${c.rank}${c.suit}`)
+    });
+  } else if (isJhabbuPlay && cards.length === 1) {
+    // Single-card Jhabbu - play the card (it's the only one of that suit)
+    // Player keeps the card in hand (doesn't actually give it away)
+    // The card acts as the Jhabbu marker but stays with the player
+    cardsToActuallyPlay = cards;
+    console.log('Single-card Jhabbu: Playing single card of suit', {
+      playedCard: `${cards[0].rank}${cards[0].suit}`,
+      note: 'Player has only one card of this suit'
+    });
+  } else {
+    // Normal play (not Jhabbu)
+    cardsToActuallyPlay = cards;
+  }
+
+  // Remove only the cards being played from player's hand (keep the lowest if Jhabbu)
+  const playedCardIds = new Set(cardsToActuallyPlay.map(c => c.id));
   const updatedPlayers = players.map((p, idx) => {
     if (idx !== playerIndex) {
       return p;
@@ -176,18 +259,18 @@ export function handlePhase2CardPlay(
 
     return {
       ...p,
-      hand: p.hand.filter(c => !cardIds.has(c.id))
+      hand: p.hand.filter(c => !playedCardIds.has(c.id))
     };
   });
 
-  // Add cards to trick
+  // Add only the played cards to trick (not the kept lowest card)
   const updatedTrickCards: TrickCard[] = [
     ...trickCards,
-    ...cards.map(card => ({ card, playerId }))
+    ...cardsToActuallyPlay.map(card => ({ card, playerId }))
   ];
 
-  // Check if a Jhabbu was just played (any card in current play not of lead suit)
-  const jhabbuJustPlayed = cards.some(card => card.suit !== leadSuit);
+  // Check if a Jhabbu was just played (any card in the cards actually played not of lead suit)
+  const jhabbuJustPlayed = cardsToActuallyPlay.some(card => card.suit !== leadSuit);
   
   // Check if trick is complete
   // Trick completes when: all active players have played OR a Jhabbu was played

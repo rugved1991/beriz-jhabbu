@@ -173,8 +173,12 @@ export function getValidJhabbuCards(hand: Card[], leadSuit: Suit, chosenSuit: Su
 
 /**
  * Validate if a Jhabbu play is legal.
+ * Client sends ALL cards of the suit they want to Jhabbu with.
+ * Server validates and will keep the lowest card for the player (for multi-card Jhabbu).
  * 
- * @param cardsToPlay - The cards the player wants to play
+ * Single-card Jhabbu: When player has only one card of a suit, they can give Jhabbu with just that card.
+ * 
+ * @param cardsToPlay - ALL cards the player selected (including lowest for multi-card)
  * @param hand - The player's current hand
  * @param leadSuit - The lead suit for this trick
  * @returns true if the Jhabbu is valid, false otherwise
@@ -190,18 +194,36 @@ export function validateJhabbu(cardsToPlay: Card[], hand: Card[], leadSuit: Suit
     return false;
   }
   
-  // Get valid Jhabbu cards for this suit
-  const validCards = getValidJhabbuCards(hand, leadSuit, jhabbuSuit);
-  
-  if (!validCards) {
+  // Player must be void in lead suit
+  if (!isVoidInSuit(hand, leadSuit)) {
     return false;
   }
   
-  // Check if the cards to play match the valid Jhabbu cards
-  if (cardsToPlay.length !== validCards.length) {
+  // Cannot choose the lead suit for Jhabbu
+  if (jhabbuSuit === leadSuit) {
     return false;
   }
   
+  // Get all cards of the chosen suit from hand
+  const cardsOfChosenSuit = hand.filter(card => card.suit === jhabbuSuit);
+  
+  if (cardsOfChosenSuit.length === 0) {
+    return false;
+  }
+  
+  // Single-card Jhabbu: Player has only one card of this suit
+  if (cardsOfChosenSuit.length === 1) {
+    return cardsToPlay.length === 1 && cardsToPlay[0].suit === jhabbuSuit;
+  }
+  
+  // Multi-card Jhabbu: must play at least 2 cards of the same suit
+  if (cardsToPlay.length < 2) {
+    return false;
+  }
+  
+  // Verify all cards to play are in the hand and of the chosen suit
   const cardIds = new Set(cardsToPlay.map(c => c.id));
-  return validCards.every(c => cardIds.has(c.id));
+  return cardsToPlay.every(card => 
+    cardsOfChosenSuit.some(c => c.id === card.id)
+  );
 }
