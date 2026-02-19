@@ -48,6 +48,11 @@ export interface GameState {
   leadSuit: Suit | null;
   trickCards: TrickCard[];
   loser: string | null;
+  jhabbuAnnouncement?: {
+    jhabbuGiverId: string;
+    jhabbuReceiverId: string;
+    cardCount: number;
+  } | null;
 }
 
 export interface Room {
