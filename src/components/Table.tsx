@@ -29,8 +29,8 @@ const Table: React.FC<TableProps> = ({
 }) => {
   // Adjust padding based on number of players
   const playerCount = players?.length || 0;
-  const verticalPadding = playerCount <= 4 ? '40px' : playerCount <= 8 ? '50px' : '60px';
-  const horizontalPadding = playerCount <= 4 ? '40px' : playerCount <= 8 ? '50px' : '60px';
+  const verticalPadding = playerCount <= 4 ? '50px' : playerCount <= 8 ? '60px' : '70px';
+  const horizontalPadding = playerCount <= 4 ? '50px' : playerCount <= 8 ? '60px' : '70px';
   
   return (
     <div 
@@ -108,6 +108,7 @@ const Table: React.FC<TableProps> = ({
                     card={card} 
                     animationType={animationType}
                     onAnimationComplete={() => onAnimationComplete?.(card.id)}
+                    isOnTable={true}
                   />
                 </div>
               );

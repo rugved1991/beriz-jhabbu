@@ -11,6 +11,7 @@ interface CardProps {
   isPlayable?: boolean;
   animationType?: AnimationType;
   onAnimationComplete?: () => void;
+  isOnTable?: boolean; // Whether card is on the table (vs in hand)
 }
 
 const Card: React.FC<CardProps> = ({ 
@@ -19,7 +20,8 @@ const Card: React.FC<CardProps> = ({
   onClick, 
   isPlayable = false,
   animationType = 'none',
-  onAnimationComplete
+  onAnimationComplete,
+  isOnTable = false
 }) => {
   // Map suits to symbols and colors
   const suitSymbols: Record<string, string> = {
@@ -117,8 +119,9 @@ const Card: React.FC<CardProps> = ({
       `}
       style={{
         ...transformStyle,
-        width: '3rem',     // 48px - better size for readability
-        height: '4.5rem'   // 72px - better aspect ratio
+        // Smaller cards on mobile when on table, normal size in hand
+        width: isOnTable ? '2.5rem' : '3rem',     // 40px on table, 48px in hand
+        height: isOnTable ? '3.75rem' : '4.5rem'  // 60px on table, 72px in hand
       }}
       onClick={isPlayable && onClick ? onClick : undefined}
       initial={variants.initial}
@@ -137,17 +140,17 @@ const Card: React.FC<CardProps> = ({
       }}
     >
       {/* Rank in top-left corner */}
-      <div className={`absolute top-1 left-1 text-xs font-bold ${suitColors[card.suit]}`} aria-hidden="true">
+      <div className={`absolute ${isOnTable ? 'top-0.5 left-0.5 text-[10px]' : 'top-1 left-1 text-xs'} font-bold ${suitColors[card.suit]}`} aria-hidden="true">
         {card.rank}
       </div>
 
       {/* Suit symbol in center */}
-      <div className={`text-2xl ${suitColors[card.suit]}`} aria-hidden="true">
+      <div className={`${isOnTable ? 'text-xl' : 'text-2xl'} ${suitColors[card.suit]}`} aria-hidden="true">
         {suitSymbols[card.suit]}
       </div>
 
       {/* Rank in bottom-right corner (upside down) */}
-      <div className={`absolute bottom-1 right-1 text-xs font-bold ${suitColors[card.suit]} rotate-180`} aria-hidden="true">
+      <div className={`absolute ${isOnTable ? 'bottom-0.5 right-0.5 text-[10px]' : 'bottom-1 right-1 text-xs'} font-bold ${suitColors[card.suit]} rotate-180`} aria-hidden="true">
         {card.rank}
       </div>
     </motion.div>
