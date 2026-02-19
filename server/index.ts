@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
+import helmet from 'helmet';
 import { RoomManager } from './managers/RoomManager';
 import { setupSocketHandlers } from './handlers/socketHandlers';
 
@@ -12,6 +13,14 @@ const httpServer = createServer(app);
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PORT = process.env.PORT || 3001;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+
+// Allowed origins for CORS
+const allowedOrigins = [
+  CLIENT_URL,
+  'http://localhost:3000', // Local development
+  'https://beriz-jhabbu.vercel.app', // Production frontend
+  'https://www.beriz-jhabbu.vercel.app' // Production frontend with www
+].filter(Boolean); // Remove any undefined values
 
 // Production logging utility
 const log = {
@@ -40,11 +49,50 @@ const log = {
 log.info('Server starting', {
   nodeEnv: NODE_ENV,
   port: PORT,
-  clientUrl: CLIENT_URL
+  allowedOrigins: allowedOrigins
 });
 
-// Configure CORS
-app.use(cors({ origin: CLIENT_URL }));
+// Configure CORS with origin validation
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      log.warn('CORS blocked request from unauthorized origin', { origin });
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
+// Request body size limits to prevent DoS attacks
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// Security headers with helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", ...allowedOrigins],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for React
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: NODE_ENV === 'production' ? [] : null
+    }
+  },
+  crossOriginEmbedderPolicy: false, // Allow embedding for Socket.io
+  crossOriginResourcePolicy: { policy: 'cross-origin' } // Allow cross-origin requests
+}));
+
+log.info('Security headers configured with helmet');
 
 // Enforce HTTPS in production
 if (NODE_ENV === 'production') {
@@ -82,11 +130,24 @@ if (NODE_ENV === 'production') {
   });
 }
 
-// Initialize Socket.io with CORS
+// Initialize Socket.io with CORS validation
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: CLIENT_URL,
-    methods: ['GET', 'POST']
+    origin: (origin, callback) => {
+      // Allow requests with no origin
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        log.warn('Socket.io CORS blocked request from unauthorized origin', { origin });
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
@@ -124,8 +185,13 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     ip: req.ip
   });
   
-  res.status(500).json({
-    error: NODE_ENV === 'production' ? 'Internal server error' : err.message
+  // Sanitize error messages for production
+  const clientError = NODE_ENV === 'production' 
+    ? 'An error occurred. Please try again later.' 
+    : err.message;
+  
+  res.status(err.status || 500).json({
+    error: clientError
   });
 });
 

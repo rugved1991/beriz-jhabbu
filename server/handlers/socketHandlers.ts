@@ -107,6 +107,40 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
       }
 
       try {
+        // Validate maxPlayers parameter
+        if (!data.maxPlayers || typeof data.maxPlayers !== 'number') {
+          securityLogger.log({
+            event: 'Invalid maxPlayers type',
+            socketId: socket.id,
+            details: `Received: ${typeof data.maxPlayers}`,
+            severity: 'warning'
+          });
+          callback({ success: false, error: 'Invalid player count' });
+          return;
+        }
+
+        if (!Number.isInteger(data.maxPlayers)) {
+          securityLogger.log({
+            event: 'Non-integer maxPlayers',
+            socketId: socket.id,
+            details: `Received: ${data.maxPlayers}`,
+            severity: 'warning'
+          });
+          callback({ success: false, error: 'Player count must be a whole number' });
+          return;
+        }
+
+        if (data.maxPlayers < 2 || data.maxPlayers > 16) {
+          securityLogger.log({
+            event: 'maxPlayers out of range',
+            socketId: socket.id,
+            details: `Received: ${data.maxPlayers}`,
+            severity: 'warning'
+          });
+          callback({ success: false, error: 'Player count must be between 2 and 16' });
+          return;
+        }
+
         const sessionId = generateSessionId();
         const roomId = roomManager.createRoom(sessionId, data.maxPlayers);
         
@@ -621,6 +655,24 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           return;
         }
 
+        // Check bot limit (max 50% of room capacity)
+        const MAX_BOT_PERCENTAGE = 0.5;
+        const botCount = room.gameState.players.filter(p => p.name.startsWith('Bot ')).length;
+        const maxBots = Math.floor(room.maxPlayers * MAX_BOT_PERCENTAGE);
+
+        if (botCount >= maxBots) {
+          securityLogger.log({
+            event: 'Bot limit reached',
+            roomId: data.roomId,
+            playerId: data.playerId,
+            socketId: socket.id,
+            details: `Current bots: ${botCount}, Max: ${maxBots}`,
+            severity: 'warning'
+          });
+          callback({ success: false, error: `Maximum ${maxBots} bots allowed in this room` });
+          return;
+        }
+
         const botId = `bot-${Date.now()}`;
         const botName = `Bot ${room.gameState.players.length + 1}`;
         const sessionId = generateSessionId();
@@ -638,7 +690,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           event: 'Bot added',
           roomId: data.roomId,
           playerId: data.playerId,
-          details: `Bot ID: ${botId}`,
+          details: `Bot ID: ${botId}, Total bots: ${botCount + 1}/${maxBots}`,
           severity: 'info'
         });
         
