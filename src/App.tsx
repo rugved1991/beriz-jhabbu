@@ -88,9 +88,6 @@ function App() {
 
   // Highlighted cards state (for penalty collection visualization)
   const [highlightedCards, setHighlightedCards] = useState<Set<string>>(new Set());
-  
-  // Pending state update (for delaying state changes during highlights)
-  const pendingStateUpdate = React.useRef<GameState | null>(null);
 
   // Track last processed event to prevent duplicates
   const lastProcessedEvent = React.useRef<{event: string, timestamp: number} | null>(null);
