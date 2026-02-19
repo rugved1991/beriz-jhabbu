@@ -878,7 +878,7 @@ function App() {
         <GameOver
           loser={loser}
           winners={winners}
-          onNewGame={handleRestartGame}
+          onNewGame={handleLeaveRoom}
         />
         <ConnectionStatus status={connectionStatus} />
         <LoadingOverlay isLoading={isLoading} message={loadingMessage} />

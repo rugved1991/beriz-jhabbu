@@ -77,12 +77,12 @@ const GameOver: React.FC<GameOverProps> = ({ loser, winners, onNewGame }) => {
           </div>
         </div>
 
-        {/* New Game Button */}
+        {/* Back to Lobby Button */}
         <button
           onClick={onNewGame}
           className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-lg hover:shadow-xl"
         >
-          New Game
+          Back to Setup
         </button>
       </div>
     </div>
