@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Player } from '../types';
 import { validatePlayerName, sanitizePlayerName } from '../utils/validation';
+import RulesModal from './RulesModal';
 
 interface LobbyProps {
   roomId: string;
@@ -67,6 +68,7 @@ export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJo
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [isStarting, setIsStarting] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+  const [showRules, setShowRules] = useState<boolean>(false);
 
   // Check if current user is actually in the players list
   const currentPlayerInRoom = players.find(p => p.id === currentUserId);
@@ -149,26 +151,37 @@ export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJo
                 <span className="font-bold text-blue-800">{players.length}/{maxPlayers}</span>
               </div>
             </div>
-            <button
-              onClick={handleCopyRoomCode}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
-            >
-              {copied ? (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Link Copied!
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Share Room Link
-                </>
-              )}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleCopyRoomCode}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+              >
+                {copied ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Link Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Share Room Link
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setShowRules(true)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                How to Play
+              </button>
+            </div>
           </div>
         </div>
 
@@ -316,6 +329,9 @@ export function Lobby({ roomId, maxPlayers, players, isHost, currentUserId, onJo
           </div>
         )}
       </div>
+
+      {/* Rules Modal */}
+      <RulesModal isOpen={showRules} onClose={() => setShowRules(false)} />
     </div>
   );
 }
