@@ -88,6 +88,9 @@ function App() {
 
   // Highlighted cards state (for penalty collection visualization)
   const [highlightedCards, setHighlightedCards] = useState<Set<string>>(new Set());
+  
+  // Pending state update (for delaying state changes during highlights)
+  const pendingStateUpdate = React.useRef<GameState | null>(null);
 
   // Track last processed event to prevent duplicates
   const lastProcessedEvent = React.useRef<{event: string, timestamp: number} | null>(null);
@@ -135,14 +138,21 @@ function App() {
           const newTableCardIds = new Set(newGameState.table.map((c: Card) => c.id));
           const removedCardIds = Array.from(oldTableCardIds).filter(id => !newTableCardIds.has(id));
           
+          console.log('Card played in BERIZ phase:', {
+            oldTableCount: oldTableCardIds.size,
+            newTableCount: newTableCardIds.size,
+            removedCount: removedCardIds.length,
+            removedCards: removedCardIds
+          });
+          
           if (removedCardIds.length > 0) {
             // Penalty occurred! Keep old state visible and highlight the removed cards
-            console.log('Penalty detected, highlighting cards:', removedCardIds);
+            console.log('🔴 PENALTY DETECTED! Highlighting cards:', removedCardIds);
             setHighlightedCards(new Set(removedCardIds));
             
             // Delay the state update to show the highlight
             setTimeout(() => {
-              console.log('Applying delayed state update after highlight');
+              console.log('⏰ Applying delayed state update after highlight');
               setGameState(newGameState);
               setHighlightedCards(new Set());
               
@@ -156,11 +166,13 @@ function App() {
             }, 1200); // 1.2 second delay to show highlight
             
             // Don't update state immediately, wait for timeout
+            console.log('⏸️ State update delayed for highlight animation');
             return;
           }
         }
         
         // No penalty - update state immediately
+        console.log('No penalty detected, updating state immediately');
         setGameState(newGameState);
         
         // Add position for newly played card(s)
