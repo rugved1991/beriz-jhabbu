@@ -160,7 +160,7 @@ function App() {
             const collectedCardIds = Array.from(oldTableCardIds).filter(id => !newTableCardIds.has(id));
             
             console.log('🔴 PENALTY DETECTED!', {
-              player: newGameState.players.find(p => p.id === penaltyPlayerId)?.name,
+              player: newGameState.players.find((p: any) => p.id === penaltyPlayerId)?.name,
               cardsCollected: collectedCardIds.length,
               sideDeckIncrease
             });
