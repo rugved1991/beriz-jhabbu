@@ -119,10 +119,11 @@ const Card: React.FC<CardProps> = ({
       `}
       style={{
         ...transformStyle,
-        // Smaller cards on mobile: table cards 40x60px, hand cards 40x60px (same size)
-        // Desktop: table cards 48x72px, hand cards 48x72px
-        width: isOnTable ? '2.5rem' : '2.5rem',     // 40px both on table and in hand (mobile)
-        height: isOnTable ? '3.75rem' : '3.75rem'   // 60px both on table and in hand (mobile)
+        // Responsive card sizing: smaller on mobile, larger on desktop
+        // Mobile: 40x60px for table, 44x66px for hand
+        // Desktop: 48x72px for both
+        width: window.innerWidth < 640 ? (isOnTable ? '2.5rem' : '2.75rem') : '3rem',
+        height: window.innerWidth < 640 ? (isOnTable ? '3.75rem' : '4.125rem') : '4.5rem'
       }}
       onClick={isPlayable && onClick ? onClick : undefined}
       initial={variants.initial}
@@ -141,17 +142,17 @@ const Card: React.FC<CardProps> = ({
       }}
     >
       {/* Rank in top-left corner */}
-      <div className={`absolute ${isOnTable ? 'top-0.5 left-0.5 text-[10px]' : 'top-0.5 left-0.5 text-[10px]'} font-bold ${suitColors[card.suit]}`} aria-hidden="true">
+      <div className={`absolute top-0.5 left-0.5 text-[10px] sm:text-xs font-bold ${suitColors[card.suit]}`} aria-hidden="true">
         {card.rank}
       </div>
 
       {/* Suit symbol in center */}
-      <div className={`${isOnTable ? 'text-xl' : 'text-xl'} ${suitColors[card.suit]}`} aria-hidden="true">
+      <div className={`text-xl sm:text-2xl ${suitColors[card.suit]}`} aria-hidden="true">
         {suitSymbols[card.suit]}
       </div>
 
       {/* Rank in bottom-right corner (upside down) */}
-      <div className={`absolute ${isOnTable ? 'bottom-0.5 right-0.5 text-[10px]' : 'bottom-0.5 right-0.5 text-[10px]'} font-bold ${suitColors[card.suit]} rotate-180`} aria-hidden="true">
+      <div className={`absolute bottom-0.5 right-0.5 text-[10px] sm:text-xs font-bold ${suitColors[card.suit]} rotate-180`} aria-hidden="true">
         {card.rank}
       </div>
     </motion.div>
