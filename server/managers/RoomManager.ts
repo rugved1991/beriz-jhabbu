@@ -137,16 +137,26 @@ export class RoomManager {
       }
     }
 
-    // Transfer host if needed
-    if (room.hostId === playerId && room.gameState.players.length > 0) {
-      room.hostId = room.gameState.players[0].id;
-      room.gameState.players[0].isHost = true;
-      room.gameState.hostId = room.hostId;
+    // Check if there are any real players left (not bots)
+    const realPlayers = room.gameState.players.filter(p => !p.name.startsWith('Bot '));
+    
+    // If no real players remain, mark room for immediate deletion
+    if (realPlayers.length === 0) {
+      console.log(`No real players left in room ${roomId}, marking for deletion`);
+      room.emptyAt = new Date();
+      return;
     }
 
-    // Mark room as empty if no players remain (will be deleted after 1 minute by cleanup task)
-    if (room.gameState.players.length === 0) {
-      room.emptyAt = new Date();
+    // Transfer host if needed (only to real players, not bots)
+    if (room.hostId === playerId) {
+      // Find first real player (not a bot)
+      const newHost = realPlayers[0];
+      if (newHost) {
+        room.hostId = newHost.id;
+        newHost.isHost = true;
+        room.gameState.hostId = room.hostId;
+        console.log(`Host transferred from ${playerId} to ${newHost.id} (${newHost.name})`);
+      }
     }
   }
 
