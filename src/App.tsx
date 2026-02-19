@@ -109,21 +109,21 @@ function App() {
       if (lastProcessedEvent.current && 
           lastProcessedEvent.current.event === event && 
           now - lastProcessedEvent.current.timestamp < 100) {
-        console.log('Ignoring duplicate game state update:', event);
+        // Ignoring duplicate game state update
         return;
       }
       
       lastProcessedEvent.current = { event, timestamp: now };
       
-      console.log('Game state updated from server:', { 
-        event, 
-        phase: newGameState.phase,
-        players: newGameState.players.map((p: any) => ({
-          name: p.name,
-          handSize: p.hand.length,
-          handCardIds: p.hand.map((c: any) => c.id)
-        }))
-      });
+      // Only log in development mode, and never log sensitive card data
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Game state updated:', { 
+          event, 
+          phase: newGameState.phase,
+          playerCount: newGameState.players.length
+        });
+      }
+      
       setGameState(newGameState);
       
       // Update card positions based on the event
@@ -151,10 +151,9 @@ function App() {
         }
       } else if (event === 'jhabbuAnnouncement') {
         // Extract Jhabbu announcement data from game state
-        console.log('Jhabbu announcement event received', {
-          hasAnnouncement: !!newGameState.jhabbuAnnouncement,
-          announcement: newGameState.jhabbuAnnouncement
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Jhabbu announcement event received');
+        }
         
         if (newGameState.jhabbuAnnouncement) {
           const { jhabbuGiverId, jhabbuReceiverId, cardCount, keptCardId } = newGameState.jhabbuAnnouncement;
@@ -164,15 +163,6 @@ function App() {
           // Use ref to get the most current userId
           const actualCurrentUserId = currentUserIdRef.current;
           
-          console.log('Setting Jhabbu announcement:', {
-            jhabbuGiver: jhabbuGiver?.name,
-            jhabbuReceiver: jhabbuReceiver?.name,
-            cardCount,
-            keptCardId,
-            actualCurrentUserId,
-            isJhabbuGiver: jhabbuGiverId === actualCurrentUserId
-          });
-          
           if (jhabbuGiver && jhabbuReceiver) {
             setJhabbuAnnouncement({
               jhabbuGiver: jhabbuGiver.name,
@@ -181,18 +171,7 @@ function App() {
             });
             
             // If current user is the Jhabbu giver and we have the kept card ID, set up auto-play
-            console.log('Checking if should set auto-play:', {
-              jhabbuGiverId,
-              actualCurrentUserId,
-              keptCardId,
-              isMatch: jhabbuGiverId === actualCurrentUserId
-            });
-            
             if (jhabbuGiverId === actualCurrentUserId && keptCardId) {
-              console.log('Setting Jhabbu auto-play with server-provided card ID:', {
-                cardId: keptCardId
-              });
-              
               setJhabbuAutoPlay({
                 playerId: jhabbuGiverId,
                 cardId: keptCardId
@@ -206,17 +185,23 @@ function App() {
     });
 
     socketManager.onPlayerJoined(({ players }) => {
-      console.log('Player joined, updating player list');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Player joined');
+      }
       setGameState(prev => ({ ...prev, players }));
     });
 
     socketManager.onGameStarted(({ gameState: newGameState }) => {
-      console.log('Game started from server');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Game started');
+      }
       setGameState(newGameState);
     });
 
     socketManager.onPlayerRemoved(({ playerId, gameState }) => {
-      console.log('Player removed:', playerId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Player removed:', playerId);
+      }
       if (gameState) {
         // Server sent full game state with corrected currentPlayerIndex
         setGameState(gameState);
@@ -232,7 +217,9 @@ function App() {
       const storedRoomId = localStorage.getItem('roomId');
       
       if (storedSessionId && storedRoomId) {
-        console.log('Found stored session, attempting reconnection...', { storedRoomId, storedSessionId });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Found stored session, attempting reconnection');
+        }
         setIsLoading(true);
         setLoadingMessage('Reconnecting to your game...');
         
@@ -244,7 +231,9 @@ function App() {
             storedSessionId
           );
           
-          console.log('Reconnection successful!', { roomId: storedRoomId, playerId });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Reconnection successful');
+          }
           setGameState(serverGameState);
           setCurrentUserId(playerId);
           
@@ -265,7 +254,9 @@ function App() {
             setCardPositions(newPositions);
           }
         } catch (error) {
-          console.log('Reconnection failed, clearing stored session:', error);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Reconnection failed:', error);
+          }
           // Clear invalid session data
           localStorage.removeItem('sessionId');
           localStorage.removeItem('roomId');
@@ -413,16 +404,12 @@ function App() {
           // Bot plays in Phase 2
           const cardsToPlay = botSelectPhase2Cards(currentPlayer, gameState);
           if (cardsToPlay.length === 0) {
-            console.error('Bot has no cards but is still active');
+            if (process.env.NODE_ENV === 'development') {
+              console.error('Bot has no cards but is still active');
+            }
             setIsBotThinking(false);
             return;
           }
-
-          console.log('Bot Phase 2 Play:', {
-            botName: currentPlayer.name,
-            cardsToPlay: cardsToPlay.map(c => `${c.rank}${c.suit}`),
-            isJhabbu: cardsToPlay.length > 1
-          });
 
           // Send bot move through socket (will be validated by server)
           // Server handles the Jhabbu logic (keeping lowest card)
@@ -463,18 +450,8 @@ function App() {
     // Check if it's the Jhabbu giver's turn (they should lead next)
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
     
-    console.log('Checking if auto-play should trigger:', {
-      currentPlayer: currentPlayer ? {
-        id: currentPlayer.id,
-        name: currentPlayer.name
-      } : null,
-      jhabbuPlayerId: jhabbuAutoPlay.playerId,
-      match: currentPlayer?.id === jhabbuAutoPlay.playerId
-    });
-    
     if (!currentPlayer || currentPlayer.id !== jhabbuAutoPlay.playerId) {
       // Not their turn yet, wait
-      console.log('Not the Jhabbu giver\'s turn yet, waiting...');
       return;
     }
 
@@ -484,10 +461,9 @@ function App() {
       const cardToPlay = currentPlayer.hand.find(c => c.id === jhabbuAutoPlay.cardId);
       
       if (!cardToPlay) {
-        console.error('Jhabbu Auto-Play: Card not found in hand', {
-          cardId: jhabbuAutoPlay.cardId,
-          handCards: currentPlayer.hand.map(c => `${c.id}: ${c.rank}${c.suit}`)
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Jhabbu Auto-Play: Card not found in hand');
+        }
         setJhabbuAutoPlay(null);
         return;
       }
