@@ -703,25 +703,11 @@ function App() {
       localStorage.removeItem('sessionId');
       localStorage.removeItem('roomId');
       
-      // Reset to setup phase
-      setGameState({
-        phase: 'SETUP',
-        roomId: '',
-        hostId: '',
-        maxPlayers: 0,
-        players: [],
-        currentPlayerIndex: 0,
-        dealerId: '',
-        table: [],
-        leadSuit: null,
-        trickCards: [],
-        loser: null
-      });
-      
-      console.log('Left room successfully');
+      // Force page reload to ensure clean state
+      window.location.href = '/';
     } catch (error) {
       console.error('Failed to leave room:', error);
-      // Even if server call fails, clear local state
+      // Even if server call fails, clear local state and reload
       localStorage.removeItem('sessionId');
       localStorage.removeItem('roomId');
       window.location.href = '/';
