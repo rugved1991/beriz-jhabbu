@@ -151,8 +151,8 @@ function App() {
         
         if (newGameState.jhabbuAnnouncement) {
           const { jhabbuGiverId, jhabbuReceiverId, cardCount } = newGameState.jhabbuAnnouncement;
-          const jhabbuGiver = newGameState.players.find(p => p.id === jhabbuGiverId);
-          const jhabbuReceiver = newGameState.players.find(p => p.id === jhabbuReceiverId);
+          const jhabbuGiver = newGameState.players.find((p: any) => p.id === jhabbuGiverId);
+          const jhabbuReceiver = newGameState.players.find((p: any) => p.id === jhabbuReceiverId);
           
           console.log('Setting Jhabbu announcement:', {
             jhabbuGiver: jhabbuGiver?.name,
