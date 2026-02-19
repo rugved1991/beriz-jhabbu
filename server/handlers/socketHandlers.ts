@@ -706,10 +706,14 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
         // Broadcast player removal to remaining players
         const updatedRoom = roomManager.getRoom(data.roomId);
         if (updatedRoom) {
+          console.log(`After player ${data.playerId} left, room ${data.roomId} has ${updatedRoom.gameState.players.length} players:`, 
+            updatedRoom.gameState.players.map(p => `${p.name} (${p.id})`));
           io.to(data.roomId).emit('playerRemoved', { 
             playerId: data.playerId,
             players: updatedRoom.gameState.players 
           });
+        } else {
+          console.log(`Room ${data.roomId} no longer exists after player ${data.playerId} left`);
         }
       } catch (error) {
         console.error('Error leaving room:', error);

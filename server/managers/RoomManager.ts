@@ -127,7 +127,13 @@ export class RoomManager {
     const room = this.rooms.get(roomId);
     if (!room) return;
 
+    console.log(`Removing player ${playerId} from room ${roomId}. Current players:`, 
+      room.gameState.players.map(p => `${p.name} (${p.id})`));
+
     room.gameState.players = room.gameState.players.filter(p => p.id !== playerId);
+    
+    console.log(`After removal, players:`, 
+      room.gameState.players.map(p => `${p.name} (${p.id})`));
     
     // Remove session mapping
     for (const [sessionId, pId] of room.sessions.entries()) {
@@ -139,6 +145,7 @@ export class RoomManager {
 
     // Check if there are any real players left (not bots)
     const realPlayers = room.gameState.players.filter(p => !p.name.startsWith('Bot '));
+    console.log(`Real players remaining: ${realPlayers.length}`, realPlayers.map(p => p.name));
     
     // If no real players remain, mark room for immediate deletion
     if (realPlayers.length === 0) {
