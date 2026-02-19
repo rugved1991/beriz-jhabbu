@@ -472,7 +472,7 @@ function App() {
       return;
     }
 
-    // Set a delay for dramatic effect (500ms - plays quickly after announcement)
+    // Set a delay for dramatic effect (200ms - plays quickly after announcement)
     const timeoutId = setTimeout(() => {
       // Find the card in the current player's hand
       const cardToPlay = currentPlayer.hand.find(c => c.id === jhabbuAutoPlay.cardId);
@@ -501,7 +501,7 @@ function App() {
       
       // Play the lowest card automatically immediately (no need for setTimeout)
       handlePlayCard(cardToPlay);
-    }, 500); // 500ms delay
+    }, 200); // 200ms delay
 
     return () => {
       clearTimeout(timeoutId);
