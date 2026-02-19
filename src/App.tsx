@@ -94,7 +94,15 @@ function App() {
 
     // Setup event listeners
     socketManager.onGameStateUpdated(({ gameState: newGameState, event }) => {
-      console.log('Game state updated from server:', { event, phase: newGameState.phase });
+      console.log('Game state updated from server:', { 
+        event, 
+        phase: newGameState.phase,
+        players: newGameState.players.map((p: any) => ({
+          name: p.name,
+          handSize: p.hand.length,
+          handCardIds: p.hand.map((c: any) => c.id)
+        }))
+      });
       setGameState(newGameState);
       
       // Update card positions based on the event
