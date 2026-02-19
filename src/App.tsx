@@ -798,10 +798,12 @@ function App() {
 
     setGameState(newState);
     
-    // Clear card positions
+    // Clear card positions and UI states
     setCardPositions(new Map());
     setCardPlayError('');
     setIsBotThinking(false);
+    setJhabbuAnnouncement(null);
+    setJhabbuAutoPlay(null);
   }, [gameState]);
 
   // Render appropriate component based on phase
