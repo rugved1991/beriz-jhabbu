@@ -839,8 +839,8 @@ function App() {
 
         {/* Game content */}
         <main className="flex-shrink-0">
-          {/* Table area with responsive height - smaller on mobile to prevent overlap */}
-          <div className="mb-2 h-[280px] sm:h-[400px]">
+          {/* Table area with fixed reasonable height */}
+          <div className="mb-2" style={{ height: '400px' }}>
             <Table
               cards={gameState.phase === 'JHABBU' ? gameState.trickCards.map(tc => tc.card) : gameState.table}
               cardPositions={cardPositions}
