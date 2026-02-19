@@ -79,6 +79,9 @@ function App() {
   // Phase transition state (for Phase 1 to Phase 2 transition)
   const [showPhaseTransition, setShowPhaseTransition] = useState<boolean>(false);
 
+  // Track last processed event to prevent duplicates
+  const lastProcessedEvent = React.useRef<{event: string, timestamp: number} | null>(null);
+
   /**
    * Socket Manager: Initialize connection and event listeners
    */
@@ -94,6 +97,17 @@ function App() {
 
     // Setup event listeners
     socketManager.onGameStateUpdated(({ gameState: newGameState, event }) => {
+      // Prevent processing duplicate events within 100ms
+      const now = Date.now();
+      if (lastProcessedEvent.current && 
+          lastProcessedEvent.current.event === event && 
+          now - lastProcessedEvent.current.timestamp < 100) {
+        console.log('Ignoring duplicate game state update:', event);
+        return;
+      }
+      
+      lastProcessedEvent.current = { event, timestamp: now };
+      
       console.log('Game state updated from server:', { 
         event, 
         phase: newGameState.phase,
