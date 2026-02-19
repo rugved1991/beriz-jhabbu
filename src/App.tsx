@@ -16,7 +16,6 @@ import { calculateDeckCount, generateDecks, dealCards } from './utils/deckUtils'
 import { generateCardPosition } from './utils/cardPositionUtils';
 import { formatCardPlayError } from './utils/validation';
 import { isBot, botSelectPhase1Card, botSelectPhase2Cards, getBotDelay } from './utils/botAI';
-import { processJhabbuPlay } from './utils/jhabbuHelper';
 import { socketManager, ConnectionStatus as ConnectionStatusType } from './services/SocketManager';
 
 function App() {
