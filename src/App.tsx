@@ -143,8 +143,31 @@ function App() {
           setShowPhaseTransition(true);
         }
       } else if (event === 'jhabbuAnnouncement') {
-        // Jhabbu announcement will be handled by the game state update
-        console.log('Jhabbu announcement event received');
+        // Extract Jhabbu announcement data from game state
+        console.log('Jhabbu announcement event received', {
+          hasAnnouncement: !!newGameState.jhabbuAnnouncement,
+          announcement: newGameState.jhabbuAnnouncement
+        });
+        
+        if (newGameState.jhabbuAnnouncement) {
+          const { jhabbuGiverId, jhabbuReceiverId, cardCount } = newGameState.jhabbuAnnouncement;
+          const jhabbuGiver = newGameState.players.find(p => p.id === jhabbuGiverId);
+          const jhabbuReceiver = newGameState.players.find(p => p.id === jhabbuReceiverId);
+          
+          console.log('Setting Jhabbu announcement:', {
+            jhabbuGiver: jhabbuGiver?.name,
+            jhabbuReceiver: jhabbuReceiver?.name,
+            cardCount
+          });
+          
+          if (jhabbuGiver && jhabbuReceiver) {
+            setJhabbuAnnouncement({
+              jhabbuGiver: jhabbuGiver.name,
+              jhabbuReceiver: jhabbuReceiver.name,
+              cardCount
+            });
+          }
+        }
         // Clear card positions for new trick
         setCardPositions(new Map());
       }
@@ -357,24 +380,15 @@ function App() {
             return;
           }
 
-          // Smart Jhabbu: If multiple cards selected, keep lowest and give rest as Jhabbu
-          let finalCardsToPlay: Card[];
-
-          if (cardsToPlay.length > 1) {
-            const { jhabbuCards } = processJhabbuPlay(cardsToPlay);
-            finalCardsToPlay = jhabbuCards;
-            
-            console.log('Bot Smart Jhabbu Processing:', {
-              botName: currentPlayer.name,
-              selectedCards: cardsToPlay.map(c => `${c.rank}${c.suit}`),
-              jhabbuCards: jhabbuCards.map(c => `${c.rank}${c.suit}`)
-            });
-          } else {
-            finalCardsToPlay = cardsToPlay;
-          }
+          console.log('Bot Phase 2 Play:', {
+            botName: currentPlayer.name,
+            cardsToPlay: cardsToPlay.map(c => `${c.rank}${c.suit}`),
+            isJhabbu: cardsToPlay.length > 1
+          });
 
           // Send bot move through socket (will be validated by server)
-          await handlePlayCard(finalCardsToPlay);
+          // Server handles the Jhabbu logic (keeping lowest card)
+          await handlePlayCard(cardsToPlay);
           setIsBotThinking(false);
         }
       } catch (error) {
