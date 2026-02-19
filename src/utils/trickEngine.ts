@@ -211,18 +211,27 @@ export function validateJhabbu(cardsToPlay: Card[], hand: Card[], leadSuit: Suit
     return false;
   }
   
-  // Single-card Jhabbu: Player has only one card of this suit
-  if (cardsOfChosenSuit.length === 1) {
-    return cardsToPlay.length === 1 && cardsToPlay[0].suit === jhabbuSuit;
+  // Check if player only has single cards of other suits (single-card Jhabbu exception)
+  const suitCounts = new Map<Suit, number>();
+  for (const card of hand) {
+    if (card.suit !== leadSuit) {
+      suitCounts.set(card.suit, (suitCounts.get(card.suit) || 0) + 1);
+    }
   }
   
-  // Multi-card Jhabbu: must play at least 2 cards of the same suit
+  const allSingleCards = Array.from(suitCounts.values()).every(count => count === 1);
+  
+  if (allSingleCards) {
+    // Single-card Jhabbu: must play exactly one card
+    return cardsToPlay.length === 1;
+  }
+  
+  // Normal Jhabbu: must play at least 2 cards of the same suit
   if (cardsToPlay.length < 2) {
     return false;
   }
   
   // Verify all cards to play are in the hand and of the chosen suit
-  const cardIds = new Set(cardsToPlay.map(c => c.id));
   return cardsToPlay.every(card => 
     cardsOfChosenSuit.some(c => c.id === card.id)
   );
