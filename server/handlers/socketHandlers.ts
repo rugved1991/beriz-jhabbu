@@ -690,7 +690,7 @@ export function setupSocketHandlers(io: SocketIOServer, roomManager: RoomManager
           event: 'Bot added',
           roomId: data.roomId,
           playerId: data.playerId,
-          details: `Bot ID: ${botId}, Total bots: ${botCount + 1}/${maxBots}`,
+          details: `Bot ID: ${botId}, Total bots: ${botCount + 1}, Room: ${totalPlayers + 1}/${room.maxPlayers}`,
           severity: 'info'
         });
         
