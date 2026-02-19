@@ -195,7 +195,8 @@ export class GameStateManager {
         newState.jhabbuAnnouncement = {
           jhabbuGiverId: result.jhabbuGiverId,
           jhabbuReceiverId: result.trickWinnerId,
-          cardCount: result.jhabbuCardCount
+          cardCount: result.jhabbuCardCount,
+          keptCardId: result.keptCardId // Include kept card ID for auto-play
         };
         event = 'jhabbuAnnouncement';
       } else {

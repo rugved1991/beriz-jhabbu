@@ -42,6 +42,7 @@ export interface Phase2PlayResult {
   wasJhabbu?: boolean; // Whether this trick involved a Jhabbu dump
   jhabbuCardCount?: number; // Number of cards in the Jhabbu dump
   jhabbuGiverId?: string; // ID of the player who gave Jhabbu
+  keptCardId?: string; // ID of the lowest card kept by Jhabbu giver (for auto-play)
 }
 
 /**
@@ -378,7 +379,8 @@ export function handlePhase2CardPlay(
       nextLeaderId,
       wasJhabbu: true,
       jhabbuCardCount,
-      jhabbuGiverId: jhabbuPlayerId
+      jhabbuGiverId: jhabbuPlayerId,
+      keptCardId: lowestKeptCard?.id // Include the kept card ID for auto-play
     };
   } else {
     // No Jhabbu Dump - cards are discarded, player with highest card leads next

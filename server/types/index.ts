@@ -52,6 +52,7 @@ export interface GameState {
     jhabbuGiverId: string;
     jhabbuReceiverId: string;
     cardCount: number;
+    keptCardId?: string; // ID of the lowest card kept by Jhabbu giver
   } | null;
 }
 

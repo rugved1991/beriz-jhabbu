@@ -157,7 +157,7 @@ function App() {
         });
         
         if (newGameState.jhabbuAnnouncement) {
-          const { jhabbuGiverId, jhabbuReceiverId, cardCount } = newGameState.jhabbuAnnouncement;
+          const { jhabbuGiverId, jhabbuReceiverId, cardCount, keptCardId } = newGameState.jhabbuAnnouncement;
           const jhabbuGiver = newGameState.players.find((p: any) => p.id === jhabbuGiverId);
           const jhabbuReceiver = newGameState.players.find((p: any) => p.id === jhabbuReceiverId);
           
@@ -168,6 +168,7 @@ function App() {
             jhabbuGiver: jhabbuGiver?.name,
             jhabbuReceiver: jhabbuReceiver?.name,
             cardCount,
+            keptCardId,
             actualCurrentUserId,
             isJhabbuGiver: jhabbuGiverId === actualCurrentUserId
           });
@@ -179,35 +180,22 @@ function App() {
               cardCount
             });
             
-            // If current user is the Jhabbu giver, set up auto-play for the lowest card
+            // If current user is the Jhabbu giver and we have the kept card ID, set up auto-play
             console.log('Checking if should set auto-play:', {
               jhabbuGiverId,
               actualCurrentUserId,
+              keptCardId,
               isMatch: jhabbuGiverId === actualCurrentUserId
             });
             
-            if (jhabbuGiverId === actualCurrentUserId && jhabbuGiver.hand.length > 0) {
-              // Find the lowest card in the Jhabbu giver's hand (should be the kept card)
-              const getRankValue = (rank: string): number => {
-                if (rank === 'A') return 14;
-                if (rank === 'K') return 13;
-                if (rank === 'Q') return 12;
-                if (rank === 'J') return 11;
-                return parseInt(rank, 10);
-              };
-              
-              const lowestCard = jhabbuGiver.hand.reduce((lowest: any, current: any) => 
-                getRankValue(current.rank) < getRankValue(lowest.rank) ? current : lowest
-              );
-              
-              console.log('Setting Jhabbu auto-play:', {
-                lowestCard: `${lowestCard.rank}${lowestCard.suit}`,
-                cardId: lowestCard.id
+            if (jhabbuGiverId === actualCurrentUserId && keptCardId) {
+              console.log('Setting Jhabbu auto-play with server-provided card ID:', {
+                cardId: keptCardId
               });
               
               setJhabbuAutoPlay({
                 playerId: jhabbuGiverId,
-                cardId: lowestCard.id
+                cardId: keptCardId
               });
             }
           }

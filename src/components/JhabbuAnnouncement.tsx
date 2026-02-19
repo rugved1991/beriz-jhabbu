@@ -17,12 +17,12 @@ const JhabbuAnnouncement: React.FC<JhabbuAnnouncementProps> = ({
   const [show, setShow] = useState(true);
 
   useEffect(() => {
-    // Hide after 2.5 seconds
+    // Hide after 2 seconds
     const timer = setTimeout(() => {
       setShow(false);
       // Call onComplete after fade out animation
       setTimeout(onComplete, 300);
-    }, 2500);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [onComplete]);
