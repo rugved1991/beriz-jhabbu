@@ -128,49 +128,74 @@ export function handlePhase1CardPlay(
 }
 
 /**
- * Checks if Phase 1 is complete (all players have empty hands).
+ * Checks if Phase 1 is complete (only one player or no players have cards left).
+ * Phase 1 ends when the last player plays their final card.
  * 
  * @param players - Array of players
- * @returns true if all players have empty hands, false otherwise
+ * @returns true if one or zero players have cards remaining, false otherwise
  */
 export function checkPhase1Completion(players: Player[]): boolean {
-  return players.every(player => player.hand.length === 0);
+  const playersWithCards = players.filter(player => player.hand.length > 0);
+  return playersWithCards.length <= 1;
 }
 
 /**
- * Handles Phase 1 completion by moving all remaining table cards to the last player
- * who played a card (the player who emptied their hand last).
+ * Handles Phase 1 completion by moving all remaining table cards AND the last player's
+ * remaining hand cards to their side deck.
  * 
  * @param lastPlayerId - ID of the last player who played a card
  * @param players - Current array of players
  * @param table - Current cards on the table
- * @returns Updated players array with table cards moved to last player's side deck
+ * @returns Updated players array with table cards and last player's hand moved to side deck
  */
 export function handlePhase1Completion(
   lastPlayerId: string,
   players: Player[],
   table: Card[]
 ): Player[] {
-  // If table is empty, no cards to move
-  if (table.length === 0) {
-    return players;
+  // Find the last player who still has cards (if any)
+  const playerWithCards = players.find(p => p.hand.length > 0);
+  
+  // If no player has cards, just move table cards to last player who played
+  if (!playerWithCards) {
+    if (table.length === 0) {
+      return players;
+    }
+
+    const playerIndex = players.findIndex(p => p.id === lastPlayerId);
+    if (playerIndex === -1) {
+      return players;
+    }
+
+    return players.map((p, idx) => {
+      if (idx !== playerIndex) {
+        return p;
+      }
+
+      return {
+        ...p,
+        sideDeck: [...p.sideDeck, ...table]
+      };
+    });
   }
 
-  // Find the last player
-  const playerIndex = players.findIndex(p => p.id === lastPlayerId);
-  if (playerIndex === -1) {
-    return players;
-  }
-
-  // Move all table cards to the last player's side deck
-  return players.map((p, idx) => {
-    if (idx !== playerIndex) {
+  // If a player still has cards, they collect their hand + table cards
+  return players.map((p) => {
+    if (p.id !== playerWithCards.id) {
       return p;
     }
 
+    console.log('Phase 1 Completion - Last player collects:', {
+      playerName: p.name,
+      handCards: p.hand.length,
+      tableCards: table.length,
+      totalCollected: p.hand.length + table.length
+    });
+
     return {
       ...p,
-      sideDeck: [...p.sideDeck, ...table]
+      hand: [], // Empty their hand
+      sideDeck: [...p.sideDeck, ...p.hand, ...table] // Add hand + table to side deck
     };
   });
 }

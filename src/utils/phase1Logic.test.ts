@@ -127,15 +127,28 @@ describe('Phase 1 Logic', () => {
       expect(checkPhase1Completion(players)).toBe(true);
     });
 
-    it('should return false when any player has cards in hand', () => {
-      const card = createCard('hearts', '5');
+    it('should return false when multiple players have cards in hand', () => {
+      const card1 = createCard('hearts', '5');
+      const card2 = createCard('diamonds', '3');
       const players = [
         createPlayer('1', []),
-        createPlayer('2', [card]),
-        createPlayer('3', [])
+        createPlayer('2', [card1]),
+        createPlayer('3', [card2])
       ];
 
       expect(checkPhase1Completion(players)).toBe(false);
+    });
+
+    it('should return true when only one player has cards left', () => {
+      const card1 = createCard('hearts', '5');
+      const card2 = createCard('diamonds', '3');
+      const players = [
+        createPlayer('1', []),
+        createPlayer('2', [card1, card2]),
+        createPlayer('3', [])
+      ];
+
+      expect(checkPhase1Completion(players)).toBe(true);
     });
 
     it('should return true for single player with empty hand', () => {
@@ -181,6 +194,28 @@ describe('Phase 1 Logic', () => {
       expect(result[0].sideDeck).toHaveLength(2);
       expect(result[0].sideDeck[0]).toEqual(existingCard);
       expect(result[0].sideDeck[1]).toEqual(tableCard);
+    });
+
+    it('should move last player hand and table cards to side deck', () => {
+      const handCard1 = createCard('hearts', '5');
+      const handCard2 = createCard('diamonds', '3');
+      const tableCard = createCard('clubs', '7');
+      const table = [tableCard];
+
+      const players = [
+        createPlayer('1', []),
+        createPlayer('2', [handCard1, handCard2]), // Last player with cards
+        createPlayer('3', [])
+      ];
+
+      const result = handlePhase1Completion('1', players, table);
+
+      // Player 2 should have empty hand and all cards in side deck
+      expect(result[1].hand).toHaveLength(0);
+      expect(result[1].sideDeck).toHaveLength(3);
+      expect(result[1].sideDeck).toContainEqual(handCard1);
+      expect(result[1].sideDeck).toContainEqual(handCard2);
+      expect(result[1].sideDeck).toContainEqual(tableCard);
     });
 
     it('should return unchanged players if table is empty', () => {
