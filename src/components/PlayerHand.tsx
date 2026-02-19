@@ -273,7 +273,7 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
 
         {/* Cards container with AnimatePresence for smooth transitions */}
         <div 
-          className="flex flex-wrap gap-1.5 min-h-[80px] p-1.5 bg-gray-900 rounded-lg"
+          className="flex flex-wrap gap-2 min-h-[80px] p-2 bg-gray-900 rounded-lg"
           role="group"
           aria-label="Your cards"
         >
