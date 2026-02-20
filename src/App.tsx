@@ -91,6 +91,9 @@ function App() {
 
   // Track last processed event to prevent duplicates
   const lastProcessedEvent = React.useRef<{event: string, timestamp: number} | null>(null);
+  
+  // Track previous game state for penalty detection
+  const previousGameStateRef = React.useRef<GameState | null>(null);
 
   /**
    * Socket Manager: Initialize connection and event listeners
@@ -135,23 +138,25 @@ function App() {
           let penaltyPlayerId: string | null = null;
           let sideDeckIncrease = 0;
           
-          for (const newPlayer of newGameState.players) {
-            const oldPlayer = gameState.players.find(p => p.id === newPlayer.id);
-            if (oldPlayer && newPlayer.sideDeck.length > oldPlayer.sideDeck.length) {
-              penaltyPlayerId = newPlayer.id;
-              sideDeckIncrease = newPlayer.sideDeck.length - oldPlayer.sideDeck.length;
-              break;
-            }
-          }
+          // Use previous game state from ref
+          const oldGameState = previousGameStateRef.current;
           
           // Log all player side deck changes for debugging
           const sideDeckChanges = newGameState.players.map((newPlayer: any) => {
-            const oldPlayer = gameState.players.find((p: any) => p.id === newPlayer.id);
+            const oldPlayer = oldGameState?.players.find((p: any) => p.id === newPlayer.id);
+            const increase = newPlayer.sideDeck.length - (oldPlayer?.sideDeck.length || 0);
+            
+            // Check if this player had a penalty
+            if (increase > 0 && !penaltyPlayerId) {
+              penaltyPlayerId = newPlayer.id;
+              sideDeckIncrease = increase;
+            }
+            
             return {
               name: newPlayer.name,
               oldSideDeck: oldPlayer?.sideDeck.length || 0,
               newSideDeck: newPlayer.sideDeck.length,
-              increase: newPlayer.sideDeck.length - (oldPlayer?.sideDeck.length || 0)
+              increase
             };
           });
           
@@ -161,14 +166,14 @@ function App() {
             penaltyDetected: penaltyPlayerId !== null,
             penaltyPlayerId,
             sideDeckIncrease,
-            oldTableCount: gameState.table.length,
+            oldTableCount: oldGameState?.table.length || 0,
             newTableCount: newGameState.table.length
           });
           
-          if (penaltyPlayerId && sideDeckIncrease > 0) {
+          if (penaltyPlayerId && sideDeckIncrease > 0 && oldGameState) {
             // Penalty occurred! Find which cards were collected
             // The penalty cards are the ones that were on the old table but not on the new table
-            const oldTableCardIds = new Set(gameState.table.map((c: Card) => c.id));
+            const oldTableCardIds = new Set(oldGameState.table.map((c: Card) => c.id));
             const newTableCardIds = new Set(newGameState.table.map((c: Card) => c.id));
             const collectedCardIds = Array.from(oldTableCardIds).filter(id => !newTableCardIds.has(id));
             
@@ -186,6 +191,7 @@ function App() {
               setTimeout(() => {
                 console.log('⏰ Applying delayed state update after highlight');
                 setGameState(newGameState);
+                previousGameStateRef.current = newGameState;
                 setHighlightedCards(new Set());
                 
                 // Update card positions after state update
@@ -207,6 +213,7 @@ function App() {
         // No penalty - update state immediately
         console.log('No penalty detected, updating state immediately');
         setGameState(newGameState);
+        previousGameStateRef.current = newGameState;
         
         // Add position for newly played card(s)
         const newCards = newGameState.phase === 'JHABBU' 
@@ -226,6 +233,7 @@ function App() {
       } else if (event === 'trickComplete' || event === 'phaseTransition') {
         // Update state immediately
         setGameState(newGameState);
+        previousGameStateRef.current = newGameState;
         // Clear card positions when trick completes or phase changes
         setCardPositions(new Map());
         if (event === 'phaseTransition') {
@@ -270,7 +278,11 @@ function App() {
       if (process.env.NODE_ENV === 'development') {
         console.log('Player joined');
       }
-      setGameState(prev => ({ ...prev, players }));
+      setGameState(prev => {
+        const newState = { ...prev, players };
+        previousGameStateRef.current = newState;
+        return newState;
+      });
     });
 
     socketManager.onGameStarted(({ gameState: newGameState }) => {
@@ -278,6 +290,7 @@ function App() {
         console.log('Game started');
       }
       setGameState(newGameState);
+      previousGameStateRef.current = newGameState;
     });
 
     socketManager.onPlayerRemoved(({ playerId, gameState }) => {
@@ -287,9 +300,14 @@ function App() {
       if (gameState) {
         // Server sent full game state with corrected currentPlayerIndex
         setGameState(gameState);
+        previousGameStateRef.current = gameState;
       } else {
         // Fallback: just update players (for backward compatibility)
-        setGameState(prev => ({ ...prev, players: (gameState as any)?.players || prev.players }));
+        setGameState(prev => {
+          const newState = { ...prev, players: (gameState as any)?.players || prev.players };
+          previousGameStateRef.current = newState;
+          return newState;
+        });
       }
     });
 
@@ -317,6 +335,7 @@ function App() {
             console.log('Reconnection successful');
           }
           setGameState(serverGameState);
+          previousGameStateRef.current = serverGameState;
           setCurrentUserId(playerId);
           
           // Initialize card positions for any cards on the table
@@ -366,22 +385,26 @@ function App() {
           const hostPlayer = roomInfo.players.find(p => p.isHost);
           
           // Set room ID and players in state, then go to lobby
-          setGameState(prev => ({ 
-            ...prev, 
-            roomId: roomIdParam,
-            hostId: hostPlayer?.id || '',
-            maxPlayers: roomInfo.maxPlayers,
-            players: roomInfo.players.map(p => ({
-              id: p.id,
-              name: p.name,
-              hand: [],
-              sideDeck: [],
-              isActive: true,
-              isHost: p.isHost,
-              position: p.position
-            })),
-            phase: 'LOBBY' 
-          }));
+          setGameState(prev => {
+            const newState: GameState = { 
+              ...prev, 
+              roomId: roomIdParam,
+              hostId: hostPlayer?.id || '',
+              maxPlayers: roomInfo.maxPlayers,
+              players: roomInfo.players.map(p => ({
+                id: p.id,
+                name: p.name,
+                hand: [],
+                sideDeck: [],
+                isActive: true,
+                isHost: p.isHost,
+                position: p.position
+              })),
+              phase: 'LOBBY' as const
+            };
+            previousGameStateRef.current = newState;
+            return newState;
+          });
           
           console.log('Room info fetched:', {
             roomId: roomIdParam,
@@ -392,7 +415,11 @@ function App() {
         } catch (error) {
           console.error('Failed to fetch room info:', error);
           // Still show lobby but with empty players list
-          setGameState(prev => ({ ...prev, roomId: roomIdParam, phase: 'LOBBY' }));
+          setGameState(prev => {
+            const newState: GameState = { ...prev, roomId: roomIdParam, phase: 'LOBBY' as const };
+            previousGameStateRef.current = newState;
+            return newState;
+          });
           setGlobalError('Room not found or no longer exists');
         }
       };
@@ -598,12 +625,16 @@ function App() {
       localStorage.setItem('roomId', roomId);
       
       // Update local state to show lobby
-      setGameState(prev => ({
-        ...prev,
-        phase: 'LOBBY',
-        roomId,
-        maxPlayers: playerCount
-      }));
+      setGameState(prev => {
+        const newState: GameState = {
+          ...prev,
+          phase: 'LOBBY' as const,
+          roomId,
+          maxPlayers: playerCount
+        };
+        previousGameStateRef.current = newState;
+        return newState;
+      });
 
       setCurrentUserId(sessionId);
 
@@ -650,6 +681,7 @@ function App() {
       
       // Update local state with server game state
       setGameState(serverGameState);
+      previousGameStateRef.current = serverGameState;
       setCurrentUserId(playerId);
       
       console.log('Joined room successfully:', { roomId: targetRoomId, playerId, sessionId });
