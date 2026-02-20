@@ -34,6 +34,7 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
   const [sortPhase1, setSortPhase1] = useState<boolean>(false);
   const [hintCard, setHintCard] = useState<string | null>(null);
+  const [multiSelectMode, setMultiSelectMode] = useState<boolean>(false); // For mobile Jhabbu
 
   // Sort cards by suit and rank in Phase 2 (Jhabbu) or by rank only in Phase 1 if sort is enabled
   const displayedHand = useMemo(() => {
@@ -51,8 +52,8 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
       return;
     }
 
-    // Check if Ctrl (Windows/Linux) or Cmd (Mac) is pressed
-    const isMultiSelectKey = event?.ctrlKey || event?.metaKey;
+    // Check if Ctrl (Windows/Linux) or Cmd (Mac) is pressed, or if multi-select mode is enabled
+    const isMultiSelectKey = event?.ctrlKey || event?.metaKey || multiSelectMode;
 
     // In Phase 1 (BERIZ), only allow single card selection
     if (phase === 'BERIZ') {
@@ -64,7 +65,7 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
         }
       });
     } else {
-      // In Phase 2 (JHABBU), allow multiple card selection with Ctrl/Cmd key
+      // In Phase 2 (JHABBU), allow multiple card selection with Ctrl/Cmd key or multi-select mode
       setSelectedCards(prevSelected => {
         const newSelection = new Set(prevSelected);
         
@@ -215,15 +216,36 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
         </div>
 
         {/* Side deck count, sort button, and hint button */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           {/* Hint button (only when it's player's turn) */}
           {isCurrentPlayer && player.isActive && (
             <button
               onClick={handleShowHint}
-              className="px-3 py-2 rounded-lg text-xs font-semibold transition-colors bg-purple-600 text-white hover:bg-purple-700"
+              className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors bg-purple-600 text-white hover:bg-purple-700"
               aria-label="Show hint for best card to play"
             >
-              💡 Hint
+              💡 <span className="hidden sm:inline">Hint</span>
+            </button>
+          )}
+          
+          {/* Multi-select toggle button (Phase 2 only, for mobile/tablet Jhabbu) */}
+          {phase === 'JHABBU' && isCurrentPlayer && player.isActive && (
+            <button
+              onClick={() => {
+                setMultiSelectMode(!multiSelectMode);
+                // Clear selection when toggling mode
+                if (!multiSelectMode) {
+                  setSelectedCards(new Set());
+                }
+              }}
+              className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors ${
+                multiSelectMode 
+                  ? 'bg-yellow-600 text-white hover:bg-yellow-700 ring-2 ring-yellow-400' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              }`}
+              aria-label={multiSelectMode ? 'Disable multi-select mode' : 'Enable multi-select mode for Jhabbu'}
+            >
+              {multiSelectMode ? '✓ Multi' : '☐ Multi'}
             </button>
           )}
           
@@ -231,25 +253,25 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
           {phase === 'BERIZ' && (
             <button
               onClick={() => setSortPhase1(!sortPhase1)}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+              className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs font-semibold transition-colors ${
                 sortPhase1 
                   ? 'bg-blue-600 text-white hover:bg-blue-700' 
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
               aria-label={sortPhase1 ? 'Unsort cards' : 'Sort cards by rank'}
             >
-              {sortPhase1 ? '🔢 Sorted' : '🔀 Sort'}
+              {sortPhase1 ? '🔢' : '🔀'}<span className="hidden sm:inline">{sortPhase1 ? ' Sorted' : ' Sort'}</span>
             </button>
           )}
           
           {/* Side deck count */}
           <div 
-            className="flex flex-col items-center bg-gray-700 px-4 py-2 rounded-lg"
+            className="flex flex-col items-center bg-gray-700 px-2 sm:px-4 py-1 sm:py-2 rounded-lg"
             role="status"
             aria-label={`Side deck has ${player.sideDeck.length} cards`}
           >
-            <p className="text-xs text-gray-400">Side Deck</p>
-            <p className="text-2xl font-bold text-white">{player.sideDeck.length}</p>
+            <p className="text-[10px] sm:text-xs text-gray-400">Side</p>
+            <p className="text-lg sm:text-2xl font-bold text-white">{player.sideDeck.length}</p>
           </div>
         </div>
       </div>
@@ -326,7 +348,9 @@ const PlayerHand: React.FC<PlayerHandProps> = ({
       {isCurrentPlayer && player.isActive && phase === 'JHABBU' && (
         <div className="w-full text-center text-xs text-gray-400 mt-1" role="status">
           <div className="text-yellow-400">
-            💡 Ctrl/Cmd + click for Jhabbu
+            {multiSelectMode 
+              ? '✓ Multi-select enabled - Tap cards for Jhabbu' 
+              : '💡 Enable Multi-select or use Ctrl/Cmd + click for Jhabbu'}
           </div>
         </div>
       )}
