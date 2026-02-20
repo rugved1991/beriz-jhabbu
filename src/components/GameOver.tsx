@@ -46,8 +46,9 @@ const GameOver: React.FC<GameOverProps> = ({ loser, winners, onNewGame }) => {
         <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 mb-6">
           <h2 className="text-2xl font-bold text-green-800 text-center mb-4">Winners</h2>
           <div className="space-y-2">
-            {sortedWinners.map((winner) => {
-              const position = winner.finishPosition || 1;
+            {sortedWinners.map((winner, index) => {
+              // Use finishPosition if available, otherwise use index + 1
+              const position = winner.finishPosition !== undefined ? winner.finishPosition : index + 1;
               const getOrdinalSuffix = (n: number) => {
                 const s = ['th', 'st', 'nd', 'rd'];
                 const v = n % 100;
