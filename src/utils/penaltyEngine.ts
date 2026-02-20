@@ -150,22 +150,23 @@ export function getLongestCombination(combinations: Card[][]): Card[] {
  * 1. Duplicate rank penalty (applies to all cards)
  * 2. Subset sum penalty (applies only to numbered cards, not face cards)
  * 
- * When both penalties apply, returns the one with the most cards.
+ * Returns ALL cards that match either penalty condition.
  * 
  * @param playedCard - The card being played
  * @param tableCards - The cards currently on the table
  * @returns Array of cards to be picked up (including the played card), or null if no penalty
  */
 export function checkPenalty(playedCard: Card, tableCards: Card[]): Card[] | null {
-  let duplicateRankPenalty: Card[] | null = null;
-  let sumPenalty: Card[] | null = null;
+  // Use card IDs to track unique cards (since Set doesn't work well with objects)
+  const penaltyCardIds = new Set<string>();
+  let hasPenalty = false;
   
   // Check for duplicate rank penalty (applies to all cards)
   if (hasDuplicateRank(playedCard, tableCards)) {
+    hasPenalty = true;
     // Find all cards with the same rank on the table
     const matchingCards = tableCards.filter(card => card.rank === playedCard.rank);
-    // Played card plus all matching cards
-    duplicateRankPenalty = [playedCard, ...matchingCards];
+    matchingCards.forEach(card => penaltyCardIds.add(card.id));
   }
   
   // Check for subset sum penalty (only for numbered cards)
@@ -174,18 +175,19 @@ export function checkPenalty(playedCard: Card, tableCards: Card[]): Card[] | nul
     const combinations = findSubsetSum(tableCards, playedCardValue);
     
     if (combinations.length > 0) {
+      hasPenalty = true;
       // Select the longest combination
       const longestCombination = getLongestCombination(combinations);
-      // Played card plus all cards in the combination
-      sumPenalty = [playedCard, ...longestCombination];
+      longestCombination.forEach(card => penaltyCardIds.add(card.id));
     }
   }
   
-  // If both penalties exist, return the one with more cards
-  if (duplicateRankPenalty && sumPenalty) {
-    return duplicateRankPenalty.length >= sumPenalty.length ? duplicateRankPenalty : sumPenalty;
+  // If any penalty exists, return played card plus all penalty cards
+  if (hasPenalty) {
+    // Convert IDs back to cards
+    const penaltyCardsFromTable = tableCards.filter(card => penaltyCardIds.has(card.id));
+    return [playedCard, ...penaltyCardsFromTable];
   }
   
-  // Return whichever penalty exists (or null if neither)
-  return duplicateRankPenalty || sumPenalty;
+  return null;
 }
