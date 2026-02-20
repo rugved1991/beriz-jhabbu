@@ -46,21 +46,29 @@ const GameOver: React.FC<GameOverProps> = ({ loser, winners, onNewGame }) => {
         <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 mb-6">
           <h2 className="text-2xl font-bold text-green-800 text-center mb-4">Winners</h2>
           <div className="space-y-2">
-            {sortedWinners.map((winner) => (
-              <div 
-                key={winner.id} 
-                className="bg-white rounded p-3 flex items-center justify-between shadow-sm"
-              >
-                <span className="font-semibold text-gray-800">{winner.name}</span>
-                <span className="text-sm text-green-600 font-medium">
-                  {winner.finishPosition === 1 && '🥇 1st Place'}
-                  {winner.finishPosition === 2 && '🥈 2nd Place'}
-                  {winner.finishPosition === 3 && '🥉 3rd Place'}
-                  {winner.finishPosition && winner.finishPosition > 3 && `${winner.finishPosition}th Place`}
-                  {!winner.finishPosition && '✓ Winner'}
-                </span>
-              </div>
-            ))}
+            {sortedWinners.map((winner) => {
+              const position = winner.finishPosition || 1;
+              const getOrdinalSuffix = (n: number) => {
+                const s = ['th', 'st', 'nd', 'rd'];
+                const v = n % 100;
+                return s[(v - 20) % 10] || s[v] || s[0];
+              };
+              
+              return (
+                <div 
+                  key={winner.id} 
+                  className="bg-white rounded p-3 flex items-center justify-between shadow-sm"
+                >
+                  <span className="font-semibold text-gray-800">{winner.name}</span>
+                  <span className="text-sm text-green-600 font-medium">
+                    {position === 1 && '🥇 1st Place'}
+                    {position === 2 && '🥈 2nd Place'}
+                    {position === 3 && '🥉 3rd Place'}
+                    {position > 3 && `${position}${getOrdinalSuffix(position)} Place`}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
