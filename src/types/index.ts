@@ -51,6 +51,8 @@ export interface GameState {
     jhabbuReceiverId: string;
     cardCount: number;
     keptCardId?: string; // ID of the lowest card kept by Jhabbu giver
+    givenSuit?: string; // Suit of cards given in Jhabbu
+    leadSuit?: string; // Lead suit of the trick
   } | null;
 }
 

@@ -43,6 +43,7 @@ export interface Phase2PlayResult {
   jhabbuCardCount?: number; // Number of cards in the Jhabbu dump
   jhabbuGiverId?: string; // ID of the player who gave Jhabbu
   keptCardId?: string; // ID of the lowest card kept by Jhabbu giver (for auto-play)
+  givenSuit?: string; // Suit of cards given as Jhabbu
 }
 
 /**
@@ -325,6 +326,10 @@ export function handlePhase2CardPlay(
     // Count how many cards were in the Jhabbu (cards not of lead suit)
     const jhabbuCardCount = updatedTrickCards.filter(tc => tc.playerId === jhabbuPlayerId).length;
     
+    // Get the suit of the cards given as Jhabbu
+    const jhabbuCards = updatedTrickCards.filter(tc => tc.playerId === jhabbuPlayerId);
+    const givenSuit = jhabbuCards.length > 0 ? jhabbuCards[0].card.suit : null;
+    
     finalPlayers = updatedPlayers.map(p => {
       if (p.id === trickWinnerId) {
         // Jhabbu Receiver gets all cards
@@ -365,6 +370,8 @@ export function handlePhase2CardPlay(
       jhabbuReceiver: trickWinnerName,
       cardsCollected: allTrickCards.map(c => `${c.rank}${c.suit}`),
       jhabbuCardCount,
+      givenSuit,
+      leadSuit,
       nextLeader: finalPlayers.find(p => p.id === nextLeaderId)?.name,
       jhabbuReceiverNewHandSize: finalPlayers.find(p => p.id === trickWinnerId)?.hand.length
     });
@@ -380,7 +387,8 @@ export function handlePhase2CardPlay(
       wasJhabbu: true,
       jhabbuCardCount,
       jhabbuGiverId: jhabbuPlayerId,
-      keptCardId: lowestKeptCard?.id // Include the kept card ID for auto-play
+      keptCardId: lowestKeptCard?.id, // Include the kept card ID for auto-play
+      givenSuit: givenSuit || undefined // Suit of cards given as Jhabbu
     };
   } else {
     // No Jhabbu Dump - cards are discarded, player with highest card leads next

@@ -196,7 +196,9 @@ export class GameStateManager {
           jhabbuGiverId: result.jhabbuGiverId,
           jhabbuReceiverId: result.trickWinnerId,
           cardCount: result.jhabbuCardCount,
-          keptCardId: result.keptCardId // Include kept card ID for auto-play
+          keptCardId: result.keptCardId, // Include kept card ID for auto-play
+          leadSuit: result.leadSuit || undefined, // Lead suit of the trick
+          givenSuit: result.givenSuit || undefined // Suit of cards given as Jhabbu
         };
         event = 'jhabbuAnnouncement';
       } else {

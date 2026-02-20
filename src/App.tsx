@@ -81,6 +81,8 @@ function App() {
     jhabbuGiver: string;
     jhabbuReceiver: string;
     cardCount: number;
+    leadSuit?: string;
+    givenSuit?: string;
   } | null>(null);
 
   // Phase transition state (for Phase 1 to Phase 2 transition)
@@ -246,7 +248,7 @@ function App() {
         }
         
         if (newGameState.jhabbuAnnouncement) {
-          const { jhabbuGiverId, jhabbuReceiverId, cardCount, keptCardId } = newGameState.jhabbuAnnouncement;
+          const { jhabbuGiverId, jhabbuReceiverId, cardCount, keptCardId, leadSuit, givenSuit } = newGameState.jhabbuAnnouncement;
           const jhabbuGiver = newGameState.players.find((p: any) => p.id === jhabbuGiverId);
           const jhabbuReceiver = newGameState.players.find((p: any) => p.id === jhabbuReceiverId);
           
@@ -257,7 +259,9 @@ function App() {
             setJhabbuAnnouncement({
               jhabbuGiver: jhabbuGiver.name,
               jhabbuReceiver: jhabbuReceiver.name,
-              cardCount
+              cardCount,
+              leadSuit,
+              givenSuit
             });
             
             // If current user is the Jhabbu giver and we have the kept card ID, set up auto-play
@@ -1060,6 +1064,8 @@ function App() {
           jhabbuGiver={jhabbuAnnouncement.jhabbuGiver}
           jhabbuReceiver={jhabbuAnnouncement.jhabbuReceiver}
           cardCount={jhabbuAnnouncement.cardCount}
+          leadSuit={jhabbuAnnouncement.leadSuit}
+          givenSuit={jhabbuAnnouncement.givenSuit}
           onComplete={() => setJhabbuAnnouncement(null)}
         />
       )}

@@ -5,6 +5,8 @@ interface JhabbuAnnouncementProps {
   jhabbuGiver: string;
   jhabbuReceiver: string;
   cardCount: number;
+  leadSuit?: string;
+  givenSuit?: string;
   onComplete: () => void;
 }
 
@@ -12,6 +14,8 @@ const JhabbuAnnouncement: React.FC<JhabbuAnnouncementProps> = ({
   jhabbuGiver,
   jhabbuReceiver,
   cardCount,
+  leadSuit,
+  givenSuit,
   onComplete
 }) => {
   const [show, setShow] = useState(true);
@@ -76,8 +80,13 @@ const JhabbuAnnouncement: React.FC<JhabbuAnnouncementProps> = ({
                   {jhabbuGiver}
                 </p>
                 <p className="text-xs sm:text-sm text-purple-200 mt-1">
-                  dumped {cardCount} card{cardCount > 1 ? 's' : ''}
+                  dumped {cardCount} {givenSuit ? `${givenSuit === 'hearts' ? '♥' : givenSuit === 'diamonds' ? '♦' : givenSuit === 'clubs' ? '♣' : '♠'} ` : ''}card{cardCount > 1 ? 's' : ''}
                 </p>
+                {leadSuit && givenSuit && (
+                  <p className="text-xs text-purple-300 mt-1">
+                    on {leadSuit === 'hearts' ? '♥' : leadSuit === 'diamonds' ? '♦' : leadSuit === 'clubs' ? '♣' : '♠'} lead
+                  </p>
+                )}
               </div>
 
               {/* Arrow */}
@@ -102,7 +111,7 @@ const JhabbuAnnouncement: React.FC<JhabbuAnnouncementProps> = ({
                   {jhabbuReceiver}
                 </p>
                 <p className="text-xs sm:text-sm text-purple-200 mt-1">
-                  (highest card of lead suit)
+                  {leadSuit ? `(highest ${leadSuit === 'hearts' ? '♥' : leadSuit === 'diamonds' ? '♦' : leadSuit === 'clubs' ? '♣' : '♠'} card)` : '(highest card of lead suit)'}
                 </p>
               </div>
             </motion.div>
