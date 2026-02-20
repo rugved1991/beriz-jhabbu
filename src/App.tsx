@@ -241,6 +241,16 @@ function App() {
         if (event === 'phaseTransition') {
           setShowPhaseTransition(true);
         }
+      } else if (event === 'gameOver') {
+        // Game over - update state immediately
+        console.log('Game Over event received:', {
+          phase: newGameState.phase,
+          loser: newGameState.loser,
+          activePlayers: newGameState.players.filter((p: any) => p.isActive).length
+        });
+        setGameState(newGameState);
+        previousGameStateRef.current = newGameState;
+        setCardPositions(new Map());
       } else if (event === 'jhabbuAnnouncement') {
         // Extract Jhabbu announcement data from game state
         if (process.env.NODE_ENV === 'development') {
@@ -275,6 +285,11 @@ function App() {
         }
         // Clear card positions for new trick
         setCardPositions(new Map());
+      } else {
+        // Handle any other events by updating state
+        console.log('Unhandled event, updating state:', event);
+        setGameState(newGameState);
+        previousGameStateRef.current = newGameState;
       }
     });
 
