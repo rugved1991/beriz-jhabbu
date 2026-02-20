@@ -51,6 +51,7 @@ const RulesModal: React.FC<RulesModalProps> = ({ isOpen, onClose }) => {
               <ul className="list-disc list-inside text-gray-700 space-y-1">
                 <li><strong>Duplicate Rank:</strong> Your card's rank already exists on the table</li>
                 <li><strong>Sum Match:</strong> Your card's value equals the sum of other cards (numbered cards only)</li>
+                <li><strong>Both Penalties:</strong> If both trigger, you collect ALL matching cards from both penalties</li>
                 <li><strong>Face Cards (J, Q, K):</strong> Only trigger duplicate rank penalties</li>
               </ul>
             </div>
