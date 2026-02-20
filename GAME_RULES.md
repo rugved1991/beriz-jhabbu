@@ -36,6 +36,13 @@ You pick up penalty cards if:
 - You collect: Your played card + all cards in the matching combination
 - If multiple combinations match, you collect the one with the most cards
 
+**BOTH penalties can trigger simultaneously:**
+- If your card triggers BOTH a duplicate rank AND a sum match, you collect ALL matching cards
+- Example: You play 10, table has another 10, 1, 2, 3, 4
+  - Duplicate: The other 10 matches your rank
+  - Sum: 1+2+3+4 = 10 matches your value
+  - You collect: Your 10 + the other 10 + 1 + 2 + 3 + 4 = 6 cards total (not just one penalty or the other)
+
 **Face Cards (J, Q, K):** Only trigger duplicate rank penalties, never sum penalties
 
 ### Penalty Cards
