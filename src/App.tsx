@@ -144,6 +144,19 @@ function App() {
             }
           }
           
+          // Log all player side deck changes for debugging
+          const sideDeckChanges = newGameState.players.map((newPlayer: any) => {
+            const oldPlayer = gameState.players.find((p: any) => p.id === newPlayer.id);
+            return {
+              name: newPlayer.name,
+              oldSideDeck: oldPlayer?.sideDeck.length || 0,
+              newSideDeck: newPlayer.sideDeck.length,
+              increase: newPlayer.sideDeck.length - (oldPlayer?.sideDeck.length || 0)
+            };
+          });
+          
+          console.log('Side deck changes:', sideDeckChanges);
+          
           console.log('Penalty check:', {
             penaltyDetected: penaltyPlayerId !== null,
             penaltyPlayerId,
